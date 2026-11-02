@@ -192,6 +192,32 @@ export default function AdminDashboardPage() {
   })
   const [programForm, setProgramForm] = useState(createEmptyProgramForm())
 
+  // Modal State for Create/Edit Kajian (Research Paper)
+  const [isPaperModalOpen, setIsPaperModalOpen] = useState(false)
+  const [editingPaperId, setEditingPaperId] = useState<string | null>(null)
+  const [uploadingPaperFile, setUploadingPaperFile] = useState(false)
+  const createEmptyPaperForm = () => ({
+    paperCode: `PAPER-${new Date().getFullYear()}-${String(Math.floor(1 + Math.random() * 999)).padStart(3, '0')}`,
+    type: 'Policy Brief',
+    title: '',
+    slug: '',
+    authors: 'Dewan Riset Suarantara',
+    institution: 'Aliansi BEM Se-Nusantara',
+    category: 'pendidikan',
+    categoryLabel: 'Pendidikan & UKT',
+    abstract: '',
+    pages: 18,
+    dateDisplay: '',
+    downloads: '0',
+    citations: '0 Sitasi',
+    fileUrl: '',
+    editionNumber: 'No. 01/2026',
+    executiveSummaryText: '',
+    recommendationsText: '',
+    isNationalHeadline: false,
+  })
+  const [paperForm, setPaperForm] = useState(createEmptyPaperForm())
+
   // Helper konversi teks (satu baris = satu item) menjadi JSON string untuk field CMS
   const linesToJson = (text: string) =>
     JSON.stringify(text.split('\n').map((l) => l.trim()).filter(Boolean))
@@ -390,6 +416,29 @@ export default function AdminDashboardPage() {
       return null
     } catch {
       showNotification('Terjadi kesalahan saat mengunggah gambar', 'error')
+      return null
+    }
+  }
+
+  const uploadDocument = async (file: File): Promise<string | null> => {
+    if (file.size > 15 * 1024 * 1024) {
+      showNotification('Ukuran dokumen melebihi 15 MB.', 'error')
+      return null
+    }
+    const form = new FormData()
+    form.append('file', file)
+    form.append('folder', 'papers')
+    try {
+      const res = await fetch('/api/cms/upload', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({}))
+      if (data.success && data.url) {
+        showNotification('Dokumen berhasil diunggah ke penyimpanan.')
+        return data.url as string
+      }
+      showNotification(data.error || 'Gagal mengunggah dokumen', 'error')
+      return null
+    } catch {
+      showNotification('Terjadi kesalahan saat mengunggah dokumen', 'error')
       return null
     }
   }
@@ -640,6 +689,80 @@ export default function AdminDashboardPage() {
         fetchAllData()
       } else {
         showNotification(data.error || 'Gagal menyimpan program', 'error')
+      }
+    } catch {
+      showNotification('Terjadi kesalahan koneksi', 'error')
+    }
+  }
+
+  // Handle Open Paper Modal (Create / Edit)
+  const openCreatePaper = () => {
+    setEditingPaperId(null)
+    setPaperForm(createEmptyPaperForm())
+    setIsPaperModalOpen(true)
+  }
+
+  const openEditPaper = (pp: any) => {
+    setEditingPaperId(pp.id)
+    setPaperForm({
+      paperCode: pp.paperCode ?? '',
+      type: pp.type ?? 'Policy Brief',
+      title: pp.title ?? '',
+      slug: pp.slug ?? '',
+      authors: pp.authors ?? '',
+      institution: pp.institution ?? '',
+      category: pp.category ?? 'pendidikan',
+      categoryLabel: pp.categoryLabel ?? '',
+      abstract: pp.abstract ?? '',
+      pages: Number(pp.pages ?? 0),
+      dateDisplay: pp.dateDisplay ?? '',
+      downloads: pp.downloads ?? '',
+      citations: pp.citations ?? '',
+      fileUrl: pp.fileUrl ?? '',
+      editionNumber: pp.editionNumber ?? '',
+      executiveSummaryText: jsonToLines(pp.executiveSummary),
+      recommendationsText: jsonToLines(pp.recommendations),
+      isNationalHeadline: Boolean(pp.isNationalHeadline),
+    })
+    setIsPaperModalOpen(true)
+  }
+
+  const handleSubmitPaper = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const payload = {
+        paperCode: paperForm.paperCode.trim(),
+        type: paperForm.type.trim() || 'Policy Brief',
+        title: paperForm.title.trim(),
+        slug: paperForm.slug.trim() || undefined,
+        authors: paperForm.authors.trim(),
+        institution: paperForm.institution.trim(),
+        category: paperForm.category,
+        categoryLabel: paperForm.categoryLabel.trim(),
+        abstract: paperForm.abstract,
+        pages: Number(paperForm.pages) || 0,
+        dateDisplay: paperForm.dateDisplay.trim() || 'Baru Saja',
+        downloads: paperForm.downloads.trim() || '0',
+        citations: paperForm.citations.trim() || '0 Sitasi',
+        fileUrl: paperForm.fileUrl.trim(),
+        executiveSummary: linesToJson(paperForm.executiveSummaryText),
+        recommendations: linesToJson(paperForm.recommendationsText),
+        editionNumber: paperForm.editionNumber.trim(),
+        isNationalHeadline: paperForm.isNationalHeadline,
+      }
+      const res = await fetch('/api/cms/papers', {
+        method: editingPaperId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingPaperId ? { ...payload, id: editingPaperId } : payload),
+      })
+      const data = await res.json()
+      if (data.success) {
+        showNotification(editingPaperId ? 'Naskah kajian berhasil diperbarui!' : 'Naskah kajian baru berhasil dipublikasikan!')
+        setIsPaperModalOpen(false)
+        setEditingPaperId(null)
+        fetchAllData()
+      } else {
+        showNotification(data.error || 'Gagal menyimpan naskah kajian', 'error')
       }
     } catch {
       showNotification('Terjadi kesalahan koneksi', 'error')
@@ -1235,7 +1358,7 @@ export default function AdminDashboardPage() {
         {/* 3. KAJIAN TAB */}
         {activeTab === 'kajian' && (
           <div className="bg-white rounded-xl border border-navy/15 shadow-xs overflow-hidden">
-            <div className="p-4 border-b border-stone-200 flex items-center justify-between">
+            <div className="p-4 border-b border-stone-200 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="font-serif font-bold text-base text-navy">
                   Katalog Policy Brief & Kertas Posisi Riset Mahasiswa
@@ -1244,6 +1367,15 @@ export default function AdminDashboardPage() {
                   Total {filteredPapers.length} naskah akademik terverifikasi peer-reviewed
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={openCreatePaper}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-serif font-bold text-white bg-navy hover:bg-navy-800 transition-colors shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-gold" />
+                <span>Tambah Naskah Kajian</span>
+              </button>
             </div>
 
             <div className="overflow-x-auto">
@@ -1290,6 +1422,13 @@ export default function AdminDashboardPage() {
                         {pp.fileUrl}
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => openEditPaper(pp)}
+                          className="p-1 rounded text-stone-400 hover:text-navy transition-colors"
+                          title="Edit naskah"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={async () => {
                             if (!confirm('Hapus naskah kajian ini?')) return
@@ -2942,6 +3081,309 @@ export default function AdminDashboardPage() {
                   className="px-5 py-2 rounded-md text-xs font-serif font-bold text-white bg-navy hover:bg-navy-800 shadow-xs"
                 >
                   {editingProgramId ? 'Simpan Perubahan' : 'Buat Program'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isPaperModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-3xl w-full p-4 sm:p-6 shadow-2xl border border-navy/20 relative my-4 sm:my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
+              <h3 className="font-serif font-bold text-lg text-navy flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-gold" />
+                <span>{editingPaperId ? 'Edit Naskah Kajian' : 'Tambah Naskah Kajian Baru'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPaperModalOpen(false)
+                  setEditingPaperId(null)
+                }}
+                className="p-1 rounded text-stone-400 hover:text-stone-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitPaper} className="space-y-5">
+              {/* Identitas Naskah */}
+              <div className="space-y-3">
+                <h4 className="text-[11px] font-serif font-bold uppercase tracking-wider text-stone-500 border-b border-stone-100 pb-1">
+                  Identitas Naskah
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Kode Naskah *</label>
+                    <input
+                      type="text"
+                      required
+                      value={paperForm.paperCode}
+                      onChange={(e) => setPaperForm({ ...paperForm, paperCode: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-mono font-bold bg-stone-50"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Slug URL (opsional)</label>
+                    <input
+                      type="text"
+                      placeholder="kosongkan = otomatis dari kode naskah"
+                      value={paperForm.slug}
+                      onChange={(e) => setPaperForm({ ...paperForm, slug: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-serif font-bold text-stone-700 mb-1">Judul Naskah *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Policy Brief Reformasi Skema UKT Nasional 2026"
+                    value={paperForm.title}
+                    onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md text-xs font-sans"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Tipe Naskah</label>
+                    <select
+                      value={paperForm.type}
+                      onChange={(e) => setPaperForm({ ...paperForm, type: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                    >
+                      <option value="Policy Brief">Policy Brief</option>
+                      <option value="Position Paper">Position Paper</option>
+                      <option value="Kajian Tematik">Kajian Tematik</option>
+                      <option value="Working Paper">Working Paper</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Kategori Riset</label>
+                    <select
+                      value={paperForm.category}
+                      onChange={(e) => setPaperForm({ ...paperForm, category: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                    >
+                      <option value="pendidikan">Pendidikan &amp; UKT</option>
+                      <option value="hukum">Hukum &amp; Demokrasi</option>
+                      <option value="ekonomi">Ekonomi &amp; Kerja</option>
+                      <option value="lingkungan">Sains &amp; Lingkungan</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Label Kategori (tampilan)</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Pendidikan & UKT"
+                    value={paperForm.categoryLabel}
+                    onChange={(e) => setPaperForm({ ...paperForm, categoryLabel: e.target.value })}
+                    className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                  />
+                </div>
+              </div>
+
+              {/* Peneliti & Terbitan */}
+              <div className="space-y-3">
+                <h4 className="text-[11px] font-serif font-bold uppercase tracking-wider text-stone-500 border-b border-stone-100 pb-1">
+                  Peneliti &amp; Terbitan
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Peneliti / Penyusun</label>
+                    <input
+                      type="text"
+                      value={paperForm.authors}
+                      onChange={(e) => setPaperForm({ ...paperForm, authors: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Lembaga</label>
+                    <input
+                      type="text"
+                      value={paperForm.institution}
+                      onChange={(e) => setPaperForm({ ...paperForm, institution: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Jumlah Halaman</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={paperForm.pages}
+                      onChange={(e) => setPaperForm({ ...paperForm, pages: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Tanggal Terbit (tampilan)</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 31 Okt 2026"
+                      value={paperForm.dateDisplay}
+                      onChange={(e) => setPaperForm({ ...paperForm, dateDisplay: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Nomor Edisi</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: No. 04/2026"
+                      value={paperForm.editionNumber}
+                      onChange={(e) => setPaperForm({ ...paperForm, editionNumber: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Berkas Dokumen & Metrik */}
+              <div className="space-y-3">
+                <h4 className="text-[11px] font-serif font-bold uppercase tracking-wider text-stone-500 border-b border-stone-100 pb-1">
+                  Berkas Dokumen &amp; Metrik
+                </h4>
+                <div>
+                  <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">URL Dokumen (PDF)</label>
+                  <input
+                    type="text"
+                    placeholder="https://... atau unggah berkas PDF di bawah"
+                    value={paperForm.fileUrl}
+                    onChange={(e) => setPaperForm({ ...paperForm, fileUrl: e.target.value })}
+                    className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                  />
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      disabled={uploadingPaperFile}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        setUploadingPaperFile(true)
+                        const url = await uploadDocument(file)
+                        if (url) setPaperForm((prev) => ({ ...prev, fileUrl: url }))
+                        setUploadingPaperFile(false)
+                        e.target.value = ''
+                      }}
+                      className="flex-1 text-[11px] font-sans file:mr-2 file:px-3 file:py-1.5 file:rounded-md file:border-0 file:bg-navy file:text-white file:text-[11px] file:cursor-pointer text-stone-500"
+                    />
+                    {uploadingPaperFile && (
+                      <RefreshCw className="w-4 h-4 text-gold animate-spin shrink-0" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-[10px] text-stone-400 font-sans">
+                    Unggah berkas PDF (maks 15 MB) dari perangkat, atau tempel tautan dokumen langsung.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Jumlah Unduhan (tampilan)</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 5.0K"
+                      value={paperForm.downloads}
+                      onChange={(e) => setPaperForm({ ...paperForm, downloads: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Sitasi (tampilan)</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 20 Sitasi"
+                      value={paperForm.citations}
+                      onChange={(e) => setPaperForm({ ...paperForm, citations: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={paperForm.isNationalHeadline}
+                    onChange={(e) => setPaperForm({ ...paperForm, isNationalHeadline: e.target.checked })}
+                    className="w-4 h-4 rounded border-stone-300 text-navy focus:ring-navy"
+                  />
+                  <span className="text-xs font-sans font-semibold text-stone-700">
+                    Jadikan riset unggulan (headline) di halaman Kajian
+                  </span>
+                </label>
+              </div>
+
+              {/* Substansi */}
+              <div className="space-y-3">
+                <h4 className="text-[11px] font-serif font-bold uppercase tracking-wider text-stone-500 border-b border-stone-100 pb-1">
+                  Substansi Naskah
+                </h4>
+                <div>
+                  <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">Abstrak</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Ringkasan eksekutif naskah kajian..."
+                    value={paperForm.abstract}
+                    onChange={(e) => setPaperForm({ ...paperForm, abstract: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-md text-xs font-sans resize-y"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                      Temuan Kunci (satu baris = satu temuan)
+                    </label>
+                    <textarea
+                      rows={5}
+                      placeholder={'Temuan pertama\nTemuan kedua\nTemuan ketiga'}
+                      value={paperForm.executiveSummaryText}
+                      onChange={(e) => setPaperForm({ ...paperForm, executiveSummaryText: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md text-xs font-sans resize-y"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                      Rekomendasi Kebijakan (satu baris = satu rekomendasi)
+                    </label>
+                    <textarea
+                      rows={5}
+                      placeholder={'Rekomendasi pertama\nRekomendasi kedua'}
+                      value={paperForm.recommendationsText}
+                      onChange={(e) => setPaperForm({ ...paperForm, recommendationsText: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md text-xs font-sans resize-y"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPaperModalOpen(false)
+                    setEditingPaperId(null)
+                  }}
+                  className="px-4 py-2 rounded-md text-xs font-serif font-bold text-stone-600 hover:bg-stone-100"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-md text-xs font-serif font-bold text-white bg-navy hover:bg-navy-800 shadow-xs"
+                >
+                  {editingPaperId ? 'Simpan Perubahan' : 'Publikasikan Naskah'}
                 </button>
               </div>
             </form>

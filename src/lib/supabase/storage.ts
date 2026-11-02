@@ -8,6 +8,7 @@
 //   SUPABASE_STORAGE_BUCKET       → nama bucket (default: "media")
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 // 5 MB
+export const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024 // 15 MB (dokumen PDF)
 
 const ALLOWED_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -16,6 +17,10 @@ const ALLOWED_MIME: Record<string, string> = {
   'image/gif': 'gif',
   'image/avif': 'avif',
   'image/svg+xml': 'svg',
+}
+
+const ALLOWED_DOC_MIME: Record<string, string> = {
+  'application/pdf': 'pdf',
 }
 
 export function isSupabaseStorageConfigured(): boolean {
@@ -37,9 +42,15 @@ export function isAllowedImageType(mime: string): boolean {
   return Boolean(ALLOWED_MIME[mime])
 }
 
+/** True jika MIME diizinkan sebagai dokumen (PDF). */
+export function isAllowedDocumentType(mime: string): boolean {
+  return Boolean(ALLOWED_DOC_MIME[mime])
+}
+
 /** Ekstensi aman berdasarkan MIME (fallback ke nama file bila MIME tak dikenal). */
 export function resolveExtension(mime: string, fileName: string): string {
-  if (ALLOWED_MIME[mime]) return ALLOWED_MIME[mime]
+  const known = ALLOWED_MIME[mime] || ALLOWED_DOC_MIME[mime]
+  if (known) return known
   const match = /\.([a-z0-9]{2,5})$/i.exec(fileName)
   return match ? match[1].toLowerCase() : 'bin'
 }

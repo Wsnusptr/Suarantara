@@ -18,29 +18,49 @@ const inter = Inter({
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/+$/, '')
 
+const SITE_DESCRIPTION =
+  'SUARANTARA adalah portal digital mahasiswa yang berfokus pada tiga pilar: Media, Advokasi, dan Kajian untuk representasi mahasiswa Nusantara.'
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: 'SUARANTARA — Suara Aspirasi dan Representasi Mahasiswa Nusantara',
     template: '%s | SUARANTARA',
   },
-  description:
-    'SUARANTARA adalah organisasi mahasiswa yang berfokus pada tiga pilar: Media, Advokasi, dan Kajian untuk representasi mahasiswa Nusantara.',
+  description: SITE_DESCRIPTION,
   keywords: ['SUARANTARA', 'mahasiswa', 'aspirasi', 'advokasi', 'media', 'kajian', 'nusantara'],
   applicationName: 'SUARANTARA',
+  authors: [{ name: 'Suarantara' }],
+  creator: 'Suarantara',
+  publisher: 'Suarantara',
+  icons: {
+    icon: [{ url: '/favicon.jpeg', type: 'image/jpeg' }],
+    shortcut: ['/favicon.jpeg'],
+    apple: [{ url: '/logo-Suarantara.png' }],
+  },
   openGraph: {
     type: 'website',
     locale: 'id_ID',
     siteName: 'SUARANTARA',
     url: SITE_URL,
-    images: [{ url: '/tentang-kami-mahasiswa.jpeg', width: 1200, height: 630, alt: 'SUARANTARA' }],
+    title: 'SUARANTARA — Suara Aspirasi dan Representasi Mahasiswa Nusantara',
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: '/logo-Suarantara.png',
+        width: 550,
+        height: 244,
+        alt: 'Logo SUARANTARA',
+        type: 'image/png',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SUARANTARA',
+    title: 'SUARANTARA — Suara Aspirasi dan Representasi Mahasiswa Nusantara',
     description:
       'Media, Advokasi, dan Kajian untuk representasi mahasiswa Nusantara.',
-    images: ['/tentang-kami-mahasiswa.jpeg'],
+    images: ['/logo-Suarantara.png'],
   },
 }
 

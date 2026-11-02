@@ -12,27 +12,31 @@ import {
 import {
   isSupabaseStorageConfigured,
   isAllowedImageType,
+  isAllowedDocumentType,
   resolveExtension,
   uploadToSupabaseStorage,
   MAX_UPLOAD_BYTES,
+  MAX_DOCUMENT_BYTES,
 } from '@/lib/supabase/storage'
 
 // ─── Unggah aset gambar ke Supabase Storage (server-side, SERVICE ROLE) ───────
 // Hanya staf redaksi. Rate limit ketat. Validasi tipe & ukuran berkas.
-// multipart/form-data: field "file" (wajib), "folder" (opsional: articles|programs|partners|reels).
+// multipart/form-data: field "file" (wajib), "folder" (opsional).
+//   folder "papers" → menerima berkas PDF (maks 15 MB).
+//   folder lain     → menerima gambar (maks 5 MB).
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const ALLOWED_FOLDERS = ['articles', 'programs', 'partners', 'reels', 'misc'] as const
+const ALLOWED_FOLDERS = ['articles', 'programs', 'partners', 'reels', 'papers', 'misc'] as const
 
 export async function POST(req: NextRequest) {
   const staff = await requireStaff()
-  if (!staff) return unauthorized('Hanya staf redaksi yang dapat mengunggah gambar.')
+  if (!staff) return unauthorized('Hanya staf redaksi yang dapat mengunggah berkas.')
 
   if (!isSupabaseStorageConfigured()) {
     return serverError(
-      'Penyimpanan gambar belum dikonfigurasi. Isi NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY.'
+      'Penyimpanan berkas belum dikonfigurasi. Isi NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY.'
     )
   }
 
@@ -45,18 +49,27 @@ export async function POST(req: NextRequest) {
     if (!form) return badRequest('Format unggahan tidak valid.')
 
     const file = form.get('file')
-    if (!(file instanceof File)) return badRequest('Berkas gambar wajib disertakan.')
+    if (!(file instanceof File)) return badRequest('Berkas wajib disertakan.')
 
     if (file.size <= 0) return badRequest('Berkas kosong.')
-    if (file.size > MAX_UPLOAD_BYTES) {
-      return badRequest(`Ukuran berkas melebihi batas ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`)
-    }
-    if (!isAllowedImageType(file.type)) {
-      return badRequest('Tipe berkas tidak didukung. Gunakan JPG, PNG, WEBP, GIF, AVIF, atau SVG.')
-    }
 
     const folderRaw = cleanString(form.get('folder'), 40) || 'misc'
     const folder = (ALLOWED_FOLDERS as readonly string[]).includes(folderRaw) ? folderRaw : 'misc'
+    const isDocument = folder === 'papers'
+
+    const sizeLimit = isDocument ? MAX_DOCUMENT_BYTES : MAX_UPLOAD_BYTES
+    if (file.size > sizeLimit) {
+      return badRequest(`Ukuran berkas melebihi batas ${Math.round(sizeLimit / (1024 * 1024))} MB.`)
+    }
+
+    const typeOk = isDocument ? isAllowedDocumentType(file.type) : isAllowedImageType(file.type)
+    if (!typeOk) {
+      return badRequest(
+        isDocument
+          ? 'Tipe berkas tidak didukung. Gunakan PDF.'
+          : 'Tipe berkas tidak didukung. Gunakan JPG, PNG, WEBP, GIF, AVIF, atau SVG.'
+      )
+    }
 
     const ext = resolveExtension(file.type, file.name || '')
     const random = Math.random().toString(36).slice(2, 10)
@@ -67,8 +80,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, url, path })
   } catch (error) {
-    console.error('Failed to upload image:', error)
-    const message = error instanceof Error ? error.message : 'Gagal mengunggah gambar.'
+    console.error('Failed to upload file:', error)
+    const message = error instanceof Error ? error.message : 'Gagal mengunggah berkas.'
     return serverError(message.slice(0, 300))
   }
 }
