@@ -1,0 +1,390 @@
+// This is your Prisma schema file for SUARANTARA CMS
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Produksi & pengembangan memakai Supabase PostgreSQL.
+  // DATABASE_URL  : koneksi pooled (pgbouncer, port 6543) untuk runtime serverless.
+  // DIRECT_URL    : koneksi langsung (port 5432) untuk migrasi/db push.
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── NextAuth Authentication Models ──────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("USER") // USER, ADMIN, SUPERADMIN, PEMRED, EDITOR_MEDIA, TIM_ADVOKASI, TIM_RISET, HUMAS_MITRA
+  createdAt     DateTime  @default(now())
+
+  accounts      Account[]
+  sessions      Session[]
+  voices        Voice[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── PILAR MEDIA: Berita, Warta, Investigasi, Rubrik ─────────────────────────
+
+model Article {
+  id                 String   @id @default(cuid())
+  title              String
+  slug               String   @unique
+  leadExcerpt        String   @default("")
+  content            String   @default("")
+  kickerBadge        String?  // Misal: "Investigasi Utama", "Edisi Khusus Kampus"
+  editionBadge       String?  // Misal: "Edisi Khusus Kampus"
+  category           String   // Misal: "Opini Mahasiswa", "Warta Advokasi", "Politik", dll
+  categoryKey        String   @default("umum") // politik, hukum, peristiwa, pendidikan, kesehatan, sosbud, umum
+  authorName         String   @default("Redaksi Suarantara")
+  authorRole         String?  // Misal: "M. Farhan (Presma)", "Biro Politik Kampus"
+  authorAvatar       String?
+  publishedAt        DateTime @default(now())
+  dateDisplay        String   @default("31 Okt 2026")
+  viewsCount         Int      @default(0)
+  viewsDisplay       String   @default("0") // Misal: "8.7K", "28.4K Tayang"
+  coverImageUrl      String?
+  coverCaption       String?
+  coverCredit        String?  @default("Foto: Biro Dokumentasi")
+  imageGrad          String   @default("from-navy-950 via-navy-900 to-stone-900")
+  iconColor          String   @default("text-gold")
+  iconType           String   @default("newspaper") // newspaper, scale, book, landmark, activity, compass
+  isHeadlineBanner   Boolean  @default(false)
+  isEditorPick       Boolean  @default(false)
+  isTrending         Boolean  @default(false)
+  rankingNo          String?  // "01", "02", "03", "04"
+  recommendationTag  String?  // "Hukum", "Pendidikan", "Riset", dll
+  status             String   @default("PUBLISHED") // DRAFT, IN_REVIEW, PUBLISHED, ARCHIVED
+  tags               String   @default("[]") // JSON string array misal ["#KawalUKT", "#ReformasiPendidikan"]
+  externalId         String?  @unique // ID dokumen Sanity (_id) untuk sinkronisasi idempotent
+  source             String   @default("local") // local | sanity
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model VideoReel {
+  id                 String   @id @default(cuid())
+  title              String
+  creator            String   @default("Redaksi Suarantara")
+  views              String   @default("10K")
+  duration           String   @default("1:00")
+  category           String   @default("Liputan Langsung")
+  thumbnailUrl       String?
+  videoUrl           String?
+  thumbnailGradient  String   @default("from-navy-950 via-navy-900 to-stone-900")
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+}
+
+model Poll {
+  id               String       @id @default(cuid())
+  question         String
+  totalRespondents String       @default("3.418 Mahasiswa")
+  isActive         Boolean      @default(true)
+  options          PollOption[]
+  createdAt        DateTime     @default(now())
+}
+
+model PollOption {
+  id        String   @id @default(cuid())
+  pollId    String
+  label     String
+  percent   String   @default("0%")
+  votes     Int      @default(0)
+  sortOrder Int      @default(0)
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+}
+
+model QuoteAspiration {
+  id             String   @id @default(cuid())
+  quoteText      String
+  figureName     String
+  figureRole     String
+  avatarInitials String   @default("SM")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+}
+
+// ─── PILAR ADVOKASI: Kasus, Dokumen, Petisi, Whistleblower ────────────────────
+
+model AdvocacyCase {
+  id                  String   @id @default(cuid())
+  caseCode            String   @unique // kasus-1, kasus-2, dll
+  title               String
+  slug                String   @unique
+  campus              String
+  category            String   @default("ukt") // ukt, represi, ppks, fasilitas
+  categoryLabel       String   @default("UKT & Biaya")
+  status              String   @default("investigasi") // investigasi, audiensi, litigasi, menang
+  statusLabel         String   @default("Tahap Audiensi Rektorat")
+  statusColor         String   @default("bg-amber-100 text-amber-800 border-amber-300")
+  affectedCount       String   @default("0 Mahasiswa")
+  lastUpdate          String   @default("")
+  progressPercent     Int      @default(0)
+  dateDisplay         String   @default("31 Okt 2026")
+  isNationalPriority  Boolean  @default(false)
+  alliedCount         String?  // Misal: "54 BEM Aliansi"
+  supportersCount     String?  // Misal: "34.8K Pengawal"
+  leadBackground      String   @default("") // Sinopsis/lead kasus
+  coverImageUrl       String   @default("") // Gambar sampul halaman detail
+  coverCaption        String   @default("")
+  coverCredit         String   @default("")
+  legalCounsel        String   @default("") // Inisiator/kuasa pemohon
+  urgencyLevel        String   @default("") // Label urgensi dari admin
+  timelineSteps       String   @default("[]") // JSON array {date,title,desc,status}
+  legalViolations     String   @default("[]") // JSON array {article,explanation}
+  demands             String   @default("[]") // JSON array string tuntutan
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model AdvocacyDocument {
+  id        String   @id @default(cuid())
+  docCode   String   @unique // doc-1, doc-2, dll
+  title     String
+  desc      String
+  type      String   @default("PDF") // DOCX & PDF, PDF Panduan
+  size      String   @default("250 KB")
+  downloads String   @default("1.0K Unduhan")
+  fileUrl   String   @default("#unduh")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Petition {
+  id                String   @id @default(cuid())
+  title             String
+  desc              String
+  targetSignatures  Int      @default(10000)
+  currentSignatures Int      @default(8740)
+  isUrgent          Boolean  @default(true)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model WhistleblowerReport {
+  id                  String   @id @default(cuid())
+  ticketToken         String   @unique // ST-202611-X8F2
+  isAnonymous         Boolean  @default(true)
+  campusOrigin        String
+  reportedEntity      String
+  incidentDate        DateTime?
+  incidentDescription String
+  encryptedIdentity   String?  // Terenkripsi jika tidak anonim
+  verificationStatus  String   @default("BARU_MASUK") // BARU_MASUK, TERVERIFIKASI, PENDAMPINGAN, SELESAI, DITOLAK
+  internalNotes       String?
+  createdAt           DateTime @default(now())
+}
+
+// ─── PILAR KAJIAN: Riset Ilmiah, Policy Brief, Observatorium ─────────────────
+
+model ResearchPaper {
+  id                   String   @id @default(cuid())
+  paperCode            String   @unique // paper-1, paper-2, dll
+  type                 String   @default("Policy Brief")
+  title                String
+  slug                 String   @unique
+  authors              String   @default("Dewan Riset Suarantara")
+  institution          String   @default("Aliansi BEM Se-Nusantara")
+  category             String   @default("pendidikan") // pendidikan, hukum, ekonomi, lingkungan
+  categoryLabel        String   @default("Pendidikan & UKT")
+  abstract             String   @default("")
+  pages                Int      @default(18)
+  dateDisplay          String   @default("31 Okt 2026")
+  downloads            String   @default("5.0K")
+  citations            String   @default("20 Sitasi")
+  fileUrl              String   @default("/documents/policy-brief.pdf")
+  executiveSummary     String   @default("[]") // JSON string array temuan kunci
+  recommendations      String   @default("[]") // JSON string array rekomendasi kebijakan
+  editionNumber        String   @default("No. 04/2026")
+  isNationalHeadline   Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model ObservatoryIndicator {
+  id           String   @id @default(cuid())
+  name         String
+  metricValue  String
+  metricSuffix String?  // Misal: "/ 100", "%"
+  statusNote   String
+  textColor    String   @default("text-navy")
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+model PolicyRecommendationItem {
+  id        String   @id @default(cuid())
+  title     String
+  desc      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model ResearchEvent {
+  id              String   @id @default(cuid())
+  title           String
+  eventDatetime   String
+  speakers        String
+  eventType       String   @default("Webinar Terbuka")
+  registrationUrl String   @default("#daftar")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+}
+
+// ─── PILAR PARTNERS: Konsorsium Mitra BEM & Ormawa ───────────────────────────
+
+model Partner {
+  id                   String   @id @default(cuid())
+  partnerCode          String   @unique // PTR-JKT-001
+  name                 String
+  shortName            String
+  category             String
+  joinDate             String   @default("15 Oktober 2026")
+  status               String   @default("Aktif & Terverifikasi")
+  badgeType            String   @default("Mitra Kampus") // Mitra Pendiri, Mitra Kampus, Mitra Riset, Mitra Pers
+  campusFullName       String
+  campusShortName      String
+  campusAddress        String
+  campusCity           String
+  campusProvince       String
+  campusWebsite        String?
+  presmaName           String
+  presmaTitle          String   @default("Presiden Mahasiswa")
+  wapresmaName         String?
+  wapresmaTitle        String?
+  cabinetName          String
+  periodYear           String   @default("2026 / 2027")
+  collaborationScopes  String   @default("[]") // JSON array string
+  officialQuote        String   @default("")
+  logoUrl              String   @default("/partners/bem-stmik-jayakarta.svg")
+  studentsRepresented  String?  @default("2.800+ Mahasiswa")
+  casesHandled         String?  @default("14 Advokasi Kampus")
+  papersContributed    String?  @default("6 Naskah Kajian")
+  isIn3DCarousel       Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// ─── PILAR PROGRAM: Agenda Kerja Kolektif ─────────────────────────────────────
+
+model Program {
+  id                 String   @id @default(cuid())
+  programCode        String   @unique // PRG-2026-001
+  title              String
+  slug               String   @unique
+  category           String   @default("Media & Pers") // Media & Pers, Advokasi, Riset & Kajian, Pengabdian
+  status             String   @default("Registrasi Dibuka") // Registrasi Dibuka, Sedang Berjalan, Akan Datang, Edisi Selesai
+  statusColor        String   @default("bg-emerald-50 text-emerald-800 border-emerald-200")
+  statusNote         String   @default("") // Misal: "Batas Pendaftaran: 8 November 2026"
+  dateRange          String   @default("12–15 November 2026")
+  duration           String   @default("") // Misal: "4 Hari Penuh (Karantina & Workshop)"
+  locationVenue      String
+  hostOrganizer      String
+  quota              String   @default("") // Misal: "50 Delegasi Mahasiswa Terpilih"
+  cost               String   @default("") // Misal: "100% Bebas Biaya"
+  author             String   @default("Redaksi Suarantara")
+  editionNumber      String   @default("Edisi No. 01/2026")
+  dateDisplay        String   @default("") // Misal: "31 Oktober 2026"
+  headlineImageGrad  String   @default("from-navy-950 via-navy-900 to-stone-900")
+  iconColor          String   @default("text-gold")
+  iconType           String   @default("newspaper") // newspaper, scale, book, compass
+  coverImageUrl      String?  // Gambar sampul halaman detail
+  coverCaption       String   @default("")
+  coverCredit        String   @default("")
+  leadBackground     String   @default("") // Sinopsis/lead
+  backgroundBody     String   @default("") // Latar belakang (paragraf, pisah \n\n)
+  highlights         String   @default("[]") // JSON array string poin fokus
+  modules            String   @default("[]") // JSON array {day,title,desc,mentor}
+  requirements       String   @default("[]") // JSON array syarat peserta
+  facilities         String   @default("[]") // JSON array fasilitas peserta
+  timeline           String   @default("[]") // JSON array {date,title} tahapan seleksi
+  isHeadlineProgram  Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ─── SITE UTILITIES: Running Ticker & Aspirasi Mahasiswa ─────────────────────
+
+model TickerItem {
+  id        String   @id @default(cuid())
+  text      String
+  href      String?  @default("#media")
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Voice {
+  id        String   @id @default(cuid())
+  userId    String?
+  name      String
+  email     String
+  campus    String   @default("STMIK Jayakarta")
+  category  String   @default("Umum") // Media, Advokasi, Kajian, Umum
+  subject   String
+  message   String
+  status    String   @default("PENDING") // PENDING, DITERIMA, DITINJAU, DITOLAK
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// ─── NOTIFIKASI: Token perangkat FCM (Firebase Cloud Messaging) ──────────────
+
+model FcmToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  platform  String   @default("web") // web, android, ios
+  userAgent String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}

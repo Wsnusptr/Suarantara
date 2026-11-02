@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <rect x="15" y="15" width="170" height="170" rx="20" fill="#1B2D5E" stroke="#D4A200" stroke-width="3"/>
+  <path d="M60 85 L100 55 L140 85 L140 135 L60 135 Z" fill="none" stroke="#FAF8F5" stroke-width="3"/>
+  <circle cx="100" cy="100" r="16" fill="#D4A200"/>
+  <text x="100" y="160" font-family="'Playfair Display', Georgia, serif" font-size="9" font-weight="bold" fill="#FAF8F5" text-anchor="middle" letter-spacing="1.5">PERS MAHASISWA</text>
+  <text x="100" y="172" font-family="'Inter', sans-serif" font-size="7" fill="#D4A200" text-anchor="middle">JARINGAN WARTA</text>
+</svg>

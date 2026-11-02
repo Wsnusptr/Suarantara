@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="90" fill="#FAF8F5" stroke="#1B2D5E" stroke-width="3"/>
+  <circle cx="100" cy="100" r="80" fill="none" stroke="#D4A200" stroke-width="1.5"/>
+  <polygon points="100,50 145,130 55,130" fill="none" stroke="#1B2D5E" stroke-width="4"/>
+  <circle cx="100" cy="98" r="14" fill="#D4A200"/>
+  <text x="100" y="152" font-family="'Inter', sans-serif" font-size="9" font-weight="bold" fill="#1B2D5E" text-anchor="middle" letter-spacing="1">BEM NUSANTARA</text>
+  <text x="100" y="165" font-family="'Inter', sans-serif" font-size="7" fill="#666" text-anchor="middle">MITRA STRATEGIS</text>
+</svg>

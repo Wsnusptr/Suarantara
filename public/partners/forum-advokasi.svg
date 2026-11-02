@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="90" fill="#FAF8F5" stroke="#C0392B" stroke-width="3"/>
+  <path d="M70 70 L100 50 L130 70 L130 115 C130 135 100 150 100 150 C100 150 70 135 70 115 Z" fill="#1B2D5E"/>
+  <path d="M85 95 L95 105 L115 85" fill="none" stroke="#D4A200" stroke-width="4" stroke-linecap="round"/>
+  <text x="100" y="172" font-family="'Inter', sans-serif" font-size="8.5" font-weight="bold" fill="#1B2D5E" text-anchor="middle" letter-spacing="1">FORUM ADVOKASI</text>
+</svg>
