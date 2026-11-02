@@ -1592,8 +1592,8 @@ export default function AdminDashboardPage() {
 
       {/* ─── MODAL CREATE ARTICLE ─── */}
       {isArticleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-navy/20 relative my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-navy/20 relative my-4 sm:my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
               <h3 className="font-serif font-bold text-lg text-navy flex items-center gap-2">
                 <Newspaper className="w-5 h-5 text-gold" />
@@ -1630,7 +1630,7 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Slug URL *
@@ -1677,7 +1677,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Kicker Badge
@@ -1760,7 +1760,7 @@ export default function AdminDashboardPage() {
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-sans font-semibold text-stone-500 mb-1">
                       Keterangan Gambar
@@ -1785,7 +1785,7 @@ export default function AdminDashboardPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-sans font-semibold text-stone-500 mb-1">
                       Gradient Fallback (bila tanpa gambar)
@@ -1859,7 +1859,7 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Penulis / Biro
@@ -1884,7 +1884,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Jabatan Penulis
@@ -1916,7 +1916,7 @@ export default function AdminDashboardPage() {
                   <Star className="w-4 h-4 text-gold" />
                   <span>Penempatan & Prioritas Tampil</span>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <label className="flex items-center gap-2 text-xs font-sans text-stone-700 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1945,7 +1945,7 @@ export default function AdminDashboardPage() {
                     <span>Tren</span>
                   </label>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-sans font-semibold text-stone-500 mb-1">
                       Ranking Tren (1-10)
@@ -2011,8 +2011,8 @@ export default function AdminDashboardPage() {
 
       {/* ─── MODAL CREATE ADVOCACY CASE ─── */}
       {isCaseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-xl w-full p-6 shadow-2xl border border-navy/20 relative my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-navy/20 relative my-4 sm:my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
               <h3 className="font-serif font-bold text-lg text-crimson flex items-center gap-2">
                 <Scale className="w-5 h-5 text-crimson" />
@@ -2042,7 +2042,7 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Kampus Asal *
@@ -2082,7 +2082,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Status Tahapan
@@ -2159,7 +2159,7 @@ export default function AdminDashboardPage() {
 
               {/* ─── Section Konten Advokasi (cover, narasi, inisiator, urgensi) ─── */}
               <div className="pt-3 border-t border-stone-200 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                       Cover Gambar (URL)
@@ -2212,7 +2212,7 @@ export default function AdminDashboardPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                       Inisiator / Kuasa Pemohon
@@ -2307,8 +2307,8 @@ export default function AdminDashboardPage() {
 
       {/* ─── MODAL CREATE PARTNER ─── */}
       {isPartnerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-xl w-full p-6 shadow-2xl border border-navy/20 relative my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-navy/20 relative my-4 sm:my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
               <h3 className="font-serif font-bold text-lg text-navy flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-gold" />
@@ -2324,7 +2324,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <form onSubmit={handleCreatePartner} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Kode Mitra *
@@ -2371,7 +2371,7 @@ export default function AdminDashboardPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Nama Singkat *
@@ -2399,7 +2399,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Kota Asal Kampus
@@ -2426,7 +2426,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                     Presma / Pimpinan
@@ -2491,8 +2491,8 @@ export default function AdminDashboardPage() {
 
       {/* ─── MODAL CREATE / EDIT PROGRAM ─── */}
       {isProgramModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-3xl w-full p-6 shadow-2xl border border-navy/20 relative my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-3xl w-full p-4 sm:p-6 shadow-2xl border border-navy/20 relative my-4 sm:my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
               <h3 className="font-serif font-bold text-lg text-navy flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-gold" />
