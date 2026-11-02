@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getClientIp, rateLimit, tooManyRequests, badRequest, cleanString } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 // Bangun representasi poll lengkap dengan total suara & persentase yang dihitung
 // dari kolom `votes` (PollOption) — sumber kebenaran tunggal.
 function serializePoll(

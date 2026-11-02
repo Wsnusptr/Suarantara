@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getClientIp, rateLimit, tooManyRequests, serverError } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 // Bank dokumen & panduan advokasi — dibaca publik, dikelola lewat seed/CMS internal.
 export async function GET(req: NextRequest) {
   try {

@@ -13,6 +13,8 @@ import {
   oneOf,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 const VOICE_STATUS = ['PENDING', 'DITERIMA', 'DITINJAU', 'DITOLAK'] as const
 
 // GET: daftar aspirasi bersifat internal (memuat identitas pengirim) → khusus staf.

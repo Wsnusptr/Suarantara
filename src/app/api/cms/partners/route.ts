@@ -14,6 +14,8 @@ import {
   type FieldSpec,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 const PARTNER_FIELDS = {
   partnerCode: { type: 'string', max: 80 },
   name: { type: 'string', max: 300 },

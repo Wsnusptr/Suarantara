@@ -14,6 +14,8 @@ import {
   type FieldSpec,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 const PROGRAM_FIELDS = {
   programCode: { type: 'string', max: 80 },
   title: { type: 'string', max: 300 },

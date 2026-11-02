@@ -11,6 +11,8 @@ import {
   slugify,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 const ARTICLE_STATUS = ['DRAFT', 'IN_REVIEW', 'PUBLISHED', 'ARCHIVED'] as const
 
 // Field yang boleh ditulis klien (mencegah mass-assignment / penulisan kolom sistem)

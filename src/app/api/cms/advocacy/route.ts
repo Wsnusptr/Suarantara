@@ -14,6 +14,8 @@ import {
   type FieldSpec,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 // Field yang boleh ditulis klien (mencegah mass-assignment kolom sistem)
 const CASE_FIELDS = {
   caseCode: { type: 'string', max: 80 },

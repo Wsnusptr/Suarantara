@@ -12,6 +12,8 @@ import {
   type FieldSpec,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 const REEL_FIELDS = {
   title: { type: 'string', max: 300 },
   creator: { type: 'string', max: 160 },

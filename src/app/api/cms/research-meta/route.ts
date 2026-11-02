@@ -12,6 +12,8 @@ import {
   type FieldSpec,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 // ─── OBSERVATORIUM DATA: Metrik empiris lapangan ─────────────────────────────
 const INDICATOR_FIELDS = {
   name: { type: 'string', max: 200 },

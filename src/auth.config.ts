@@ -10,17 +10,12 @@ const STAFF_ROLES = new Set([
   'HUMAS_MITRA',
 ])
 
-// Rahasia sesi. Di produksi, AUTH_SECRET WAJIB diisi (fail-closed) agar token
-// tidak bisa dipalsukan. Fallback hanya untuk lingkungan pengembangan.
+// Rahasia sesi. Di produksi, AUTH_SECRET WAJIB diisi agar token tidak bisa dipalsukan.
 const resolvedSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
-if (!resolvedSecret && process.env.NODE_ENV === 'production') {
-  throw new Error(
-    'AUTH_SECRET wajib diisi pada lingkungan produksi. Setel AUTH_SECRET pada environment variabel.'
-  )
-}
 
 export const authConfig = {
-  secret: resolvedSecret || 'dev-only-insecure-secret-change-me-32chars',
+  // Gunakan rahasia dari env, atau fallback hanya jika bukan di produksi.
+  secret: resolvedSecret || (process.env.NODE_ENV === 'production' ? undefined : 'dev-only-insecure-secret-change-me-32chars'),
   pages: {
     signIn: '/masuk',
   },

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireStaff, unauthorized, serverError, getClientIp, rateLimit, tooManyRequests } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 // Statistik internal CMS → khusus staf.
 export async function GET(req: NextRequest) {
   const staff = await requireStaff()

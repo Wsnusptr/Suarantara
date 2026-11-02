@@ -12,6 +12,8 @@ import {
   type FieldSpec,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 const TICKER_FIELDS = {
   text: { type: 'string', max: 300 },
   href: { type: 'string', max: 500 },

@@ -12,6 +12,8 @@ import {
   type FieldSpec,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 // Field yang boleh ditulis klien (mencegah mass-assignment kolom sistem)
 const PETITION_FIELDS = {
   title: { type: 'string', max: 300 },

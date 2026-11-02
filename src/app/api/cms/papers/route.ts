@@ -14,6 +14,8 @@ import {
   type FieldSpec,
 } from '@/lib/api-guard'
 
+export const dynamic = 'force-dynamic'
+
 const PAPER_FIELDS = {
   paperCode: { type: 'string', max: 80 },
   type: { type: 'string', max: 80 },
