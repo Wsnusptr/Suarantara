@@ -5,9 +5,10 @@ import { Clock, CloudSun, Sunrise } from 'lucide-react'
 
 interface StatusWaktuProps {
   isDark?: boolean
+  variant?: 'desktop' | 'mobile-drawer'
 }
 
-export function StatusWaktu({ isDark = true }: StatusWaktuProps) {
+export function StatusWaktu({ isDark = true, variant = 'desktop' }: StatusWaktuProps) {
   const [currentSlide, setCurrentSlide] = useState<number>(0)
   const [isVisible, setIsVisible] = useState<boolean>(true)
   const [wibTime, setWibTime] = useState<string>('')
@@ -105,14 +106,54 @@ export function StatusWaktu({ isDark = true }: StatusWaktuProps) {
       icon: <CloudSun className="w-3.5 h-3.5 text-sky-400 shrink-0 drop-shadow-xs" />,
       text: 'Nusantara • 29°C Cerah Berawan',
     },
-    {
-      id: 'clock',
-      icon: <Clock className="w-3.5 h-3.5 text-crimson-300 shrink-0 drop-shadow-xs" />,
-      text: wibTime || '--:--:-- WIB',
-    },
   ]
 
-  const activeStatus = statusItems[currentSlide]
+  // In mobile-drawer, we only cycle between prayer and weather in the center.
+  // Time is shown separately on the right.
+  const activeStatus = variant === 'mobile-drawer' 
+    ? statusItems[currentSlide % 2]
+    : [
+        ...statusItems,
+        {
+          id: 'clock',
+          icon: <Clock className="w-3.5 h-3.5 text-crimson-300 shrink-0 drop-shadow-xs" />,
+          text: wibTime || '--:--:-- WIB',
+        }
+      ][currentSlide % 3]
+
+  if (variant === 'mobile-drawer') {
+    return (
+      <div className="flex items-center justify-between w-full text-[10px] font-sans text-stone-500 px-1">
+        {/* KIRI: Tanggal */}
+        <span className="font-serif italic text-stone-600 capitalize shrink-0" suppressHydrationWarning>
+          {currentDateFormatted || 'Memuat...'}
+        </span>
+
+        {/* TENGAH: Status Transisi (Cuaca / Solat) */}
+        <div className="flex-1 flex justify-center px-2 overflow-hidden">
+          <div
+            className={`flex items-center gap-1 transition-all duration-300 ease-in-out transform ${
+              isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
+            }`}
+          >
+            {activeStatus.icon}
+            <span
+              suppressHydrationWarning
+              className="font-semibold text-navy/90 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]"
+            >
+              {activeStatus.text}
+            </span>
+          </div>
+        </div>
+
+        {/* KANAN: Jam */}
+        <div className="flex items-center gap-1 font-mono font-semibold text-navy/80 shrink-0">
+          <Clock className="w-3 h-3 text-crimson/70 shrink-0" />
+          <span suppressHydrationWarning>{wibTime.replace(' WIB', '') || '--:--'}</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

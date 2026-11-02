@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { NewspaperMasthead } from '@/components/layout/NewspaperMasthead'
 import { Footer } from '@/components/layout/Footer'
-import { Send, Upload, CheckCircle, LogOut, ChevronDown } from 'lucide-react'
+import { Send, CheckCircle, LogOut, ChevronDown, AlertCircle } from 'lucide-react'
 
 const KATEGORI_OPTIONS = ['Media', 'Advokasi', 'Kajian', 'Umum'] as const
 
@@ -21,24 +21,17 @@ export default function KirimSuaraPage() {
     isi: '',
   })
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Redirect if not authenticated
-  if (status === 'unauthenticated') {
-    router.push('/masuk?callbackUrl=/kirim-suara')
-    return null
-  }
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm font-sans text-stone-500">Memuat...</p>
-        </div>
-      </div>
-    )
-  }
+  // Wajib login. Pengalihan dilakukan di dalam useEffect (bukan saat render)
+  // agar tidak memicu peringatan React tentang setState/router di body render.
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/masuk?callbackUrl=/kirim-suara')
+    }
+  }, [status, router])
 
   const user = session?.user
 
@@ -57,37 +50,36 @@ export default function KirimSuaraPage() {
     e.preventDefault()
     if (!validate()) return
 
-    // Simpan ke database CMS internal Suarantara
+    setSubmitError('')
+    setSubmitting(true)
     try {
-      await fetch('/api/cms/voices', {
+      // Identitas (nama/email) TIDAK dikirim dari klien — server mengambilnya
+      // dari sesi yang terverifikasi untuk mencegah pemalsuan identitas.
+      const res = await fetch('/api/cms/voices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: user?.name || 'Mahasiswa Nusantara',
-          email: user?.email || 'mahasiswa@suarantara.org',
           campus: formData.kampus,
           category: formData.kategori,
           subject: formData.judul,
           message: formData.isi,
         }),
       })
-    } catch (err) {
-      console.warn('Gagal menyimpan aspirasi ke DB:', err)
+
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok || !data?.success) {
+        setSubmitError(data?.error || 'Gagal mengirim aspirasi. Silakan coba lagi.')
+        setSubmitting(false)
+        return
+      }
+
+      setSubmitting(false)
+      setSubmitted(true)
+    } catch {
+      setSubmitError('Tidak dapat menghubungi server. Periksa koneksi Anda dan coba lagi.')
+      setSubmitting(false)
     }
-
-    const message = `*ASPIRASI SUARANTARA*
-━━━━━━━━━━━━━━━━━━
-*Pengirim:* ${user?.name || '-'} (${user?.email || '-'})
-*Kampus:* ${formData.kampus}
-*Kategori:* ${formData.kategori}
-*Judul:* ${formData.judul}
-━━━━━━━━━━━━━━━━━━
-
-${formData.isi}`
-
-    const waUrl = `https://wa.me/6285286140817?text=${encodeURIComponent(message)}`
-    window.open(waUrl, '_blank')
-    setSubmitted(true)
   }
 
   const handleChange = (field: string, value: string) => {
@@ -101,6 +93,20 @@ ${formData.isi}`
     }
   }
 
+  // Saat memuat sesi, atau belum login (sedang dialihkan) — tampilkan loader.
+  if (status === 'loading' || status === 'unauthenticated') {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm font-sans text-stone-500">
+            {status === 'unauthenticated' ? 'Mengalihkan ke halaman masuk...' : 'Memuat...'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] flex flex-col">
@@ -112,14 +118,15 @@ ${formData.isi}`
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-5" />
               <h2 className="font-serif text-2xl font-bold text-navy mb-3">Aspirasi Terkirim!</h2>
               <p className="text-sm font-sans text-stone-600 leading-relaxed mb-6">
-                Pesan aspirasi Anda telah diarahkan ke WhatsApp redaksi Suarantara.
-                Pastikan pesan terkirim di WhatsApp untuk memastikan aspirasi diterima.
+                Aspirasi Anda telah masuk ke Meja Redaksi Suarantara dan akan ditinjau oleh tim redaksi.
+                Anda dapat memantau statusnya melalui meja redaksi setelah login.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
                   type="button"
                   onClick={() => {
                     setSubmitted(false)
+                    setSubmitError('')
                     setFormData({ judul: '', kategori: '', kampus: '', isi: '' })
                   }}
                   className="px-5 py-2.5 rounded-full bg-gold text-navy font-bold text-xs uppercase tracking-wider shadow-sm hover:bg-gold-500 transition-colors cursor-pointer"
@@ -291,32 +298,26 @@ ${formData.isi}`
                 </div>
               </div>
 
-              {/* Lampiran (opsional) */}
-              <div>
-                <label className="block text-xs font-sans font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Lampiran <span className="text-stone-400 normal-case tracking-normal font-normal">(opsional)</span>
-                </label>
-                <div className="border-2 border-dashed border-stone-300 rounded-sm p-6 text-center hover:border-gold/60 transition-colors bg-[#FAF8F5]">
-                  <Upload className="w-8 h-8 text-stone-300 mx-auto mb-2" />
-                  <p className="text-xs font-sans text-stone-500">
-                    Seret file ke sini atau <span className="text-gold font-medium cursor-pointer hover:underline">pilih file</span>
-                  </p>
-                  <p className="text-[10px] font-sans text-stone-400 mt-1">PDF, JPG, PNG (maks. 5MB)</p>
+              {submitError && (
+                <div className="flex items-start gap-2 rounded-sm border border-red-200 bg-red-50 px-3.5 py-3">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-[12px] font-sans text-red-700 leading-relaxed">{submitError}</p>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Submit Area */}
             <div className="px-6 py-5 border-t border-stone-100 bg-stone-50/50 flex flex-col sm:flex-row items-center justify-between gap-3">
               <p className="text-[10px] font-sans text-stone-400 text-center sm:text-left">
-                Aspirasi akan dikirim melalui WhatsApp ke redaksi Suarantara.
+                Aspirasi akan tersimpan di Meja Redaksi dan ditinjau oleh tim redaksi.
               </p>
               <button
                 type="submit"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full bg-gold hover:bg-gold-500 text-navy font-bold text-sm uppercase tracking-wider shadow-sm active:scale-95 transition-all duration-200 cursor-pointer"
+                disabled={submitting}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full bg-gold hover:bg-gold-500 text-navy font-bold text-sm uppercase tracking-wider shadow-sm active:scale-95 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />
-                Kirim Aspirasi
+                {submitting ? 'Mengirim...' : 'Kirim Aspirasi'}
               </button>
             </div>
           </form>

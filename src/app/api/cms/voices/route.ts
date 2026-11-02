@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { auth } from '@/lib/auth'
 import {
   requireStaff,
   unauthorized,
@@ -9,7 +10,6 @@ import {
   rateLimit,
   tooManyRequests,
   cleanString,
-  isValidEmail,
   oneOf,
 } from '@/lib/api-guard'
 
@@ -35,32 +35,44 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: publik (form kirim-suara). Rate limit ketat untuk mencegah spam/abuse.
+// POST: kirim aspirasi. WAJIB login.
+// Identitas (nama/email/userId) diambil dari SESI terverifikasi — bukan dari
+// body — sehingga pengirim tidak dapat memalsukan identitas (anti-spoofing).
 export async function POST(req: NextRequest) {
+  const session = await auth()
+  const sessionUser = session?.user as
+    | { id?: string; name?: string | null; email?: string | null }
+    | undefined
+
+  if (!sessionUser?.email) {
+    return unauthorized('Anda harus masuk terlebih dahulu untuk mengirim aspirasi.')
+  }
+
   try {
     const ip = getClientIp(req)
-    const rl = rateLimit(`voices:create:${ip}`, 5, 10 * 60 * 1000)
+    const rl = rateLimit(`voices:create:${sessionUser.id || ip}`, 5, 10 * 60 * 1000)
     if (!rl.ok) return tooManyRequests(rl.retryAfter)
 
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
-    const name = cleanString(body.name, 160)
-    const email = cleanString(body.email, 254)
     const subject = cleanString(body.subject, 200)
     const message = cleanString(body.message, 5000)
     const campus = cleanString(body.campus, 160)
     const category = cleanString(body.category, 60)
 
-    if (!name || !email || !subject || !message) {
-      return badRequest('Nama, email, subjek, dan pesan aspirasi wajib diisi')
+    // Identitas dari sesi (disanitasi untuk berjaga-jaga bila nama panjang dsb).
+    const email = cleanString(sessionUser.email, 254)
+    const name = cleanString(sessionUser.name, 160) || email?.split('@')[0] || 'Mahasiswa Nusantara'
+
+    if (!subject || !message) {
+      return badRequest('Subjek dan pesan aspirasi wajib diisi')
     }
-    if (!isValidEmail(email)) {
-      return badRequest('Format email tidak valid')
+    if (!email) {
+      return unauthorized('Sesi tidak menyertakan email yang valid. Silakan masuk ulang.')
     }
 
     const newVoice = await db.voice.create({
       data: {
-        // userId TIDAK diambil dari body (anti spoofing identitas)
-        userId: null,
+        userId: sessionUser.id ?? null,
         name,
         email,
         campus: campus || 'STMIK Jayakarta',

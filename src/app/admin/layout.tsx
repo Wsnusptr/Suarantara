@@ -1,25 +1,24 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-
-const STAFF_ROLES = new Set([
-  'ADMIN',
-  'SUPERADMIN',
-  'PEMRED',
-  'EDITOR_MEDIA',
-  'TIM_ADVOKASI',
-  'TIM_RISET',
-  'HUMAS_MITRA',
-])
+import { isStaffRole } from '@/auth.config'
+import { AccessDenied } from '@/components/layout/AccessDenied'
 
 // Guard server-side untuk meja redaksi. Middleware hanya menyaring keberadaan
-// cookie; di sini sesi diverifikasi dan peran dipastikan staf. Non-staf diarahkan
-// kembali ke halaman masuk.
+// cookie; di sini sesi diverifikasi dan peran dipastikan staf.
+//
+//   • Belum login  → arahkan ke /masuk (bawa callbackUrl).
+//   • Sudah login tapi bukan staf → tampilkan "Akses Ditolak" (TANPA redirect,
+//     agar tidak terjadi loop /masuk -> /admin -> /masuk).
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
-  const role = (session?.user as { role?: string } | undefined)?.role
+  const user = session?.user as { role?: string; email?: string | null } | undefined
 
-  if (!session?.user || !STAFF_ROLES.has(role || '')) {
+  if (!session?.user) {
     redirect('/masuk?callbackUrl=/admin')
+  }
+
+  if (!isStaffRole(user?.role)) {
+    return <AccessDenied email={user?.email} area="Meja Redaksi (CMS)" />
   }
 
   return <>{children}</>

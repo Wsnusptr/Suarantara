@@ -11,14 +11,11 @@ import {
   X,
   Send,
   LogOut,
-  User,
   ChevronDown,
   Newspaper,
   Scale,
   BookOpen,
-  Clock,
   ShieldCheck,
-  PenTool,
 } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { StatusWaktu } from './StatusWaktu'
@@ -39,43 +36,22 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [mediaDropdownOpen, setMediaDropdownOpen] = useState(false)
-  const [drawerDate, setDrawerDate] = useState('')
-  const [drawerTime, setDrawerTime] = useState('')
-  const profileMenuRef = useRef<HTMLDivElement>(null)
+  // Dua ref terpisah: dropdown profil desktop & portrait memakai state yang
+  // sama, sehingga ref harus dipisah agar klik-luar menutup keduanya dengan benar.
+  const profileMenuRefDesktop = useRef<HTMLDivElement>(null)
+  const profileMenuRefMobile = useRef<HTMLDivElement>(null)
 
   const isLoggedIn = status === 'authenticated' && !!session?.user
-  const aspirasionHref = isLoggedIn ? '/kirim-suara' : '/masuk'
+  // @ts-expect-error custom role property
+  const userRole = session?.user?.role || 'USER'
+  const isAdmin = ['ADMIN', 'SUPERADMIN', 'PEMRED', 'EDITOR_MEDIA', 'TIM_ADVOKASI', 'TIM_RISET', 'HUMAS_MITRA'].includes(userRole)
+
+  // Belum login: arahkan ke halaman masuk dengan callbackUrl agar setelah
+  // berhasil login pengguna langsung mendarat di formulir aspirasi.
+  const aspirasionHref = isLoggedIn ? '/kirim-suara' : '/masuk?callbackUrl=/kirim-suara'
 
   useEffect(() => {
     setMounted(true)
-  }, [])
-
-  // Update realtime date & time for hamburger drawer in WIB (Asia/Jakarta)
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date()
-      const dateStr = new Intl.DateTimeFormat('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        weekday: 'long',
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      }).format(now)
-      setDrawerDate(dateStr)
-
-      const timeStr = new Intl.DateTimeFormat('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).format(now)
-      setDrawerTime(`${timeStr} WIB`)
-    }
-
-    updateTime()
-    const interval = setInterval(updateTime, 1000)
-    return () => clearInterval(interval)
   }, [])
 
   // Lock body scroll when mobile hamburger drawer is open
@@ -93,7 +69,10 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
   // Close profile dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      const insideDesktop = profileMenuRefDesktop.current?.contains(target)
+      const insideMobile = profileMenuRefMobile.current?.contains(target)
+      if (!insideDesktop && !insideMobile) {
         setProfileMenuOpen(false)
       }
     }
@@ -305,7 +284,7 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
 
                 {/* Profile Avatar (Muncul saat sudah login) */}
                 {isLoggedIn && session?.user && (
-                  <div className="relative ml-1" ref={profileMenuRef}>
+                  <div className="relative ml-1" ref={profileMenuRefDesktop}>
                     <button
                       type="button"
                       onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -335,14 +314,16 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
                           <p className="text-sm font-serif font-semibold text-navy truncate">{session.user.name}</p>
                           <p className="text-[11px] font-sans text-stone-500 truncate">{session.user.email}</p>
                         </div>
-                        <Link
-                          href="/admin"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-xs font-sans text-stone-700 hover:bg-stone-50 transition-colors"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5 text-navy" />
-                          Meja Redaksi (CMS)
-                        </Link>
+                        {isAdmin && (
+                          <Link
+                            href="/admin"
+                            onClick={() => setProfileMenuOpen(false)}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-xs font-sans text-stone-700 hover:bg-stone-50 transition-colors"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-navy" />
+                            Meja Redaksi (CMS)
+                          </Link>
+                        )}
                         <Link
                           href="/kirim-suara"
                           onClick={() => setProfileMenuOpen(false)}
@@ -447,7 +428,7 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
               {/* Kiri: Icon Profil Pengguna (Hanya Muncul Saat Sudah Login) */}
               <div className="flex items-center min-w-[36px]">
                 {isLoggedIn && session?.user && (
-                  <div className="relative" ref={profileMenuRef}>
+                  <div className="relative" ref={profileMenuRefMobile}>
                     <button
                       type="button"
                       onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -480,14 +461,16 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
                           <p className="text-xs font-serif font-bold text-navy truncate">{session.user.name}</p>
                           <p className="text-[10px] font-sans text-stone-500 truncate">{session.user.email}</p>
                         </div>
-                        <Link
-                          href="/admin"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-xs font-sans text-stone-700 hover:bg-stone-50 transition-colors"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5 text-navy" />
-                          Meja Redaksi (CMS)
-                        </Link>
+                        {isAdmin && (
+                          <Link
+                            href="/admin"
+                            onClick={() => setProfileMenuOpen(false)}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-xs font-sans text-stone-700 hover:bg-stone-50 transition-colors"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-navy" />
+                            Meja Redaksi (CMS)
+                          </Link>
+                        )}
                         <Link
                           href="/kirim-suara"
                           onClick={() => setProfileMenuOpen(false)}
@@ -638,15 +621,9 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
                     )}
                   </form>
 
-                  {/* Tanggal & Status Waktu */}
-                  <div className="flex items-center justify-between text-[10px] font-sans text-stone-500 px-1">
-                    <span className="font-serif italic text-stone-600 capitalize">
-                      {drawerDate || 'Memuat tanggal...'}
-                    </span>
-                    <div className="flex items-center gap-1 font-mono font-semibold text-navy/80">
-                      <Clock className="w-3 h-3 text-crimson/70 shrink-0" />
-                      <span>{drawerTime || '--:-- WIB'}</span>
-                    </div>
+                  {/* Tanggal & Status Waktu Transisi Mobile */}
+                  <div className="flex items-center justify-between py-1 px-1">
+                    <StatusWaktu variant="mobile-drawer" />
                   </div>
 
                   {/* Garis Pemisah Elegan */}
@@ -777,14 +754,16 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
                       )}
                     </div>
                   </div>
-                  <Link
-                    href="/admin"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-sans font-semibold text-navy bg-gold/15 hover:bg-gold/30 border border-gold/40 transition-colors cursor-pointer mb-2"
-                  >
-                    <ShieldCheck className="w-3 h-3 text-navy" />
-                    <span>Meja Redaksi (CMS)</span>
-                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-sans font-semibold text-navy bg-gold/15 hover:bg-gold/30 border border-gold/40 transition-colors cursor-pointer mb-2"
+                    >
+                      <ShieldCheck className="w-3 h-3 text-navy" />
+                      <span>Meja Redaksi (CMS)</span>
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -797,26 +776,7 @@ export function NewspaperMasthead({ variant = 'transparent' }: NewspaperMasthead
                     <span>Keluar dari Akun</span>
                   </button>
                 </div>
-              ) : (
-                <div className="p-4 border-t border-stone-200/80 bg-white/60 backdrop-blur-xs">
-                  <Link
-                    href="/admin"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[11px] font-sans font-semibold text-navy bg-gold/15 hover:bg-gold/30 border border-gold/40 transition-colors mb-2"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-navy" />
-                    <span>Meja Redaksi (CMS)</span>
-                  </Link>
-                  <Link
-                    href="/masuk"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[11px] font-sans font-semibold text-navy hover:bg-stone-100 transition-colors border border-stone-200"
-                  >
-                    <User className="w-3.5 h-3.5 text-gold-700" />
-                    <span>Masuk ke Akun Redaksi</span>
-                  </Link>
-                </div>
-              )}
+              ) : null}
             </div>
           </div>,
           document.body

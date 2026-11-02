@@ -50,6 +50,8 @@ model User {
   emailVerified DateTime?
   image         String?
   role          String    @default("USER") // USER, ADMIN, SUPERADMIN, PEMRED, EDITOR_MEDIA, TIM_ADVOKASI, TIM_RISET, HUMAS_MITRA
+  // Hash password (scrypt) untuk login manual staf redaksi. NULL = hanya bisa login via Google.
+  passwordHash  String?
   createdAt     DateTime  @default(now())
 
   accounts      Account[]

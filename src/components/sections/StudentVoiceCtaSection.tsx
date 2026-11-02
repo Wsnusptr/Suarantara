@@ -1,10 +1,33 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Send, BookOpen, ShieldCheck, Sparkles } from 'lucide-react'
+import { Send, BookOpen, ShieldCheck, Sparkles, ChevronDown, X } from 'lucide-react'
+
+// Panduan singkat redaksi — ditampilkan inline agar tombol "Panduan Redaksi"
+// tidak menjadi tautan mati (sebelumnya href="#panduan" tanpa target).
+const PANDUAN_REDAKSI: { title: string; desc: string }[] = [
+  {
+    title: 'Tulisan & Opini',
+    desc: 'Naskah asli, minimal 400 kata, mencantumkan sumber data/fakta yang dapat diverifikasi.',
+  },
+  {
+    title: 'Aduan & Advokasi',
+    desc: 'Sertakan kronologi, bukti pendukung, dan pihak terkait. Identitas pelapor dirahasiakan.',
+  },
+  {
+    title: 'Kajian & Riset',
+    desc: 'Sertakan ringkasan, metode, serta kesimpulan. Cantumkan nama institusi/afiliasi.',
+  },
+  {
+    title: 'Etika & Verifikasi',
+    desc: 'Redaksi berhak menyunting tanpa mengubah substansi, dan menolak konten hoaks/SARA.',
+  },
+]
 
 export function StudentVoiceCtaSection() {
+  const [showGuide, setShowGuide] = useState(false)
   return (
     <section className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-12 sm:pt-20 lg:pt-24 pb-8 sm:pb-12 relative z-10">
       
@@ -46,14 +69,44 @@ export function StudentVoiceCtaSection() {
                 <span>Sampaikan Suara</span>
               </Link>
 
-              <Link
-                href="#panduan"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-navy border border-stone-300 font-sans font-semibold text-[8px] sm:text-xs tracking-wide transition-all duration-200 shadow-xs"
+              <button
+                type="button"
+                onClick={() => setShowGuide((v) => !v)}
+                aria-expanded={showGuide}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full bg-stone-100 hover:bg-stone-200 text-navy border border-stone-300 font-sans font-semibold text-[8px] sm:text-xs tracking-wide transition-all duration-200 shadow-xs cursor-pointer"
               >
                 <BookOpen className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-gold-700" />
                 <span>Panduan Redaksi</span>
-              </Link>
+                <ChevronDown className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 transition-transform duration-200 ${showGuide ? 'rotate-180' : ''}`} />
+              </button>
             </div>
+
+            {/* Panel Panduan Redaksi (inline, tanpa tautan mati) */}
+            {showGuide && (
+              <div className="mt-2 rounded-xl border border-gold/40 bg-gold/5 p-3 sm:p-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-serif font-bold text-navy text-[10px] sm:text-sm">Panduan Pengiriman ke Redaksi</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowGuide(false)}
+                    aria-label="Tutup panduan"
+                    className="text-stone-400 hover:text-navy transition-colors cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <ul className="space-y-1.5">
+                  {PANDUAN_REDAKSI.map((item) => (
+                    <li key={item.title} className="flex gap-1.5 text-[9px] sm:text-xs font-sans text-stone-600 leading-relaxed">
+                      <span className="w-1 h-1 rounded-full bg-gold-600/80 mt-1.5 shrink-0" />
+                      <span>
+                        <span className="font-semibold text-navy">{item.title}:</span> {item.desc}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Keamanan & Validasi Kerahasiaan */}
             <div className="pt-0.5 sm:pt-1 flex items-center gap-1.5 text-stone-600 text-[8px] sm:text-[10px] md:text-[11px] font-sans">
