@@ -24,7 +24,9 @@ import {
   X,
   Star,
   Image as ImageIcon,
+  Video,
 } from 'lucide-react'
+import { RichTextEditor } from '@/components/common/RichTextEditor'
 
 type TabKey = 'media' | 'advokasi' | 'kajian' | 'program' | 'partners' | 'aspirasi' | 'reels'
 
@@ -71,6 +73,7 @@ export default function AdminDashboardPage() {
   // Status unggah gambar ke Supabase Storage
   const [uploadingArticleCover, setUploadingArticleCover] = useState(false)
   const [uploadingProgramCover, setUploadingProgramCover] = useState(false)
+  const [syncingSanity, setSyncingSanity] = useState(false)
   const createEmptyArticleForm = () => ({
     title: '',
     slug: '',
@@ -100,8 +103,9 @@ export default function AdminDashboardPage() {
   })
   const [articleForm, setArticleForm] = useState(createEmptyArticleForm())
 
-  // Modal State for Create Case
+  // Modal State for Create/Edit Case
   const [isCaseModalOpen, setIsCaseModalOpen] = useState(false)
+  const [editingCaseId, setEditingCaseId] = useState<string | null>(null)
   const [caseForm, setCaseForm] = useState({
     caseCode: `ADV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
     title: '',
@@ -126,8 +130,10 @@ export default function AdminDashboardPage() {
     demandsText: '',
   })
 
-  // Modal State for Create Partner
+  // Modal State for Create/Edit Partner
   const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false)
+  const [editingPartnerId, setEditingPartnerId] = useState<string | null>(null)
+  const [uploadingPartnerLogo, setUploadingPartnerLogo] = useState(false)
   const [partnerForm, setPartnerForm] = useState({
     partnerCode: 'PTR-006',
     name: '',
@@ -143,16 +149,22 @@ export default function AdminDashboardPage() {
     logoUrl: '/partners/bem-stmik-jayakarta.svg',
   })
 
-  // Modal State for Create Video Reel
+  // Modal State for Create/Edit Video Reel
   const [isReelModalOpen, setIsReelModalOpen] = useState(false)
-  const [reelForm, setReelForm] = useState({
+  const [editingReelId, setEditingReelId] = useState<string | null>(null)
+  const [uploadingReelThumb, setUploadingReelThumb] = useState(false)
+  const createEmptyReelForm = () => ({
     title: '',
     creator: 'Redaksi Suarantara',
     views: '10.5K',
     duration: '0:58',
     category: 'Liputan Langsung',
+    thumbnailUrl: '',
+    videoUrl: '',
     thumbnailGradient: 'from-navy-950 via-navy-900 to-stone-900',
+    sortOrder: 0,
   })
+  const [reelForm, setReelForm] = useState(createEmptyReelForm())
 
   // Modal State for Create/Edit Program
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false)
@@ -295,6 +307,28 @@ export default function AdminDashboardPage() {
       })
     )
   const demandsToJson = (text: string) => JSON.stringify(lines(text))
+  const jsonToTimelineSteps = (raw: unknown): string => {
+    try {
+      const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+      if (!Array.isArray(arr)) return ''
+      return arr
+        .map((t: any) => [t?.date, t?.title, t?.desc, t?.status].map((x) => String(x ?? '')).join(' | '))
+        .join('\n')
+    } catch {
+      return ''
+    }
+  }
+  const jsonToViolations = (raw: unknown): string => {
+    try {
+      const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+      if (!Array.isArray(arr)) return ''
+      return arr
+        .map((v: any) => [v?.article, v?.explanation].map((x) => String(x ?? '')).join(' | '))
+        .join('\n')
+    } catch {
+      return ''
+    }
+  }
 
   // Fetch stats & data
   const fetchAllData = async () => {
@@ -450,6 +484,27 @@ export default function AdminDashboardPage() {
     setIsArticleModalOpen(true)
   }
 
+  // Tarik seluruh naskah artikel dari Sanity → upsert ke database (agar CMS ↔ Sanity sinkron)
+  const handleSyncFromSanity = async () => {
+    setSyncingSanity(true)
+    try {
+      const res = await fetch('/api/cms/sanity-pull', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (data.success) {
+        showNotification(
+          `Sinkronisasi Sanity selesai: ${data.created ?? 0} baru, ${data.updated ?? 0} diperbarui.`
+        )
+        fetchAllData()
+      } else {
+        showNotification(data.error || 'Gagal menyinkronkan artikel dari Sanity', 'error')
+      }
+    } catch {
+      showNotification('Terjadi kesalahan saat menyinkronkan Sanity', 'error')
+    } finally {
+      setSyncingSanity(false)
+    }
+  }
+
   // Buka form untuk mengubah artikel yang sudah ada
   const openEditArticle = (art: any) => {
     setEditingArticleId(art.id)
@@ -542,7 +597,64 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Handle Create Case
+  // Buka form kasus baru / ubah kasus yang sudah ada
+  const openCreateCase = () => {
+    setEditingCaseId(null)
+    setCaseForm({
+      caseCode: `ADV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+      title: '',
+      campus: '',
+      category: 'ukt',
+      categoryLabel: 'UKT & Biaya',
+      status: 'investigasi',
+      statusLabel: 'Tahap Investigasi LBH',
+      statusColor: 'bg-amber-100 text-amber-800 border-amber-300',
+      affectedCount: '100 Mahasiswa Terdampak',
+      lastUpdate: 'Kasus baru masuk meja verifikasi advokasi.',
+      progressPercent: 20,
+      dateDisplay: '01 Nov 2026',
+      coverImageUrl: '',
+      coverCaption: '',
+      coverCredit: '',
+      legalCounsel: '',
+      urgencyLevel: '',
+      leadBackground: '',
+      timelineText: '',
+      violationsText: '',
+      demandsText: '',
+    })
+    setIsCaseModalOpen(true)
+  }
+
+  const openEditCase = (cs: any) => {
+    setEditingCaseId(cs.id)
+    setCaseForm({
+      caseCode: cs.caseCode ?? '',
+      title: cs.title ?? '',
+      campus: cs.campus ?? '',
+      category: cs.category ?? 'ukt',
+      categoryLabel: cs.categoryLabel ?? '',
+      status: cs.status ?? 'investigasi',
+      statusLabel: cs.statusLabel ?? '',
+      statusColor: cs.statusColor ?? 'bg-amber-100 text-amber-800 border-amber-300',
+      affectedCount: cs.affectedCount ?? '',
+      lastUpdate: cs.lastUpdate ?? '',
+      progressPercent: Number(cs.progressPercent ?? 0),
+      dateDisplay: cs.dateDisplay ?? '',
+      coverImageUrl: cs.coverImageUrl ?? '',
+      coverCaption: cs.coverCaption ?? '',
+      coverCredit: cs.coverCredit ?? '',
+      legalCounsel: cs.legalCounsel ?? '',
+      urgencyLevel: cs.urgencyLevel ?? '',
+      leadBackground: cs.leadBackground ?? '',
+      timelineText: jsonToTimelineSteps(cs.timelineSteps),
+      violationsText: jsonToViolations(cs.legalViolations),
+      demandsText: jsonToLines(cs.demands),
+    })
+    setIsCaseModalOpen(true)
+  }
+
+  // Handle Create / Update Case
   const handleCreateCase = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -555,39 +667,137 @@ export default function AdminDashboardPage() {
         demands: demandsToJson(demandsText),
       }
       const res = await fetch('/api/cms/advocacy', {
-        method: 'POST',
+        method: editingCaseId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(editingCaseId ? { ...payload, id: editingCaseId } : payload),
       })
       const data = await res.json()
       if (data.success) {
-        showNotification('Kasus advokasi baru berhasil didaftarkan!')
+        showNotification(editingCaseId ? 'Kasus advokasi berhasil diperbarui!' : 'Kasus advokasi baru berhasil didaftarkan!')
         setIsCaseModalOpen(false)
+        setEditingCaseId(null)
         fetchAllData()
       } else {
-        showNotification(data.error || 'Gagal mendaftar kasus', 'error')
+        showNotification(data.error || 'Gagal menyimpan kasus', 'error')
       }
     } catch {
       showNotification('Terjadi kesalahan koneksi', 'error')
     }
   }
 
-  // Handle Create Partner
+  // Buka form mitra baru / ubah mitra yang sudah ada
+  const openCreatePartner = () => {
+    setEditingPartnerId(null)
+    setPartnerForm({
+      partnerCode: `PTR-${String(partners.length + 1).padStart(3, '0')}`,
+      name: '',
+      shortName: '',
+      category: 'BEM Universitas',
+      badgeType: 'Mitra Kampus',
+      campusFullName: '',
+      campusShortName: '',
+      campusCity: '',
+      campusProvince: 'DKI Jakarta',
+      presmaName: '',
+      cabinetName: 'Kabinet Perjuangan',
+      logoUrl: '',
+    })
+    setIsPartnerModalOpen(true)
+  }
+
+  const openEditPartner = (pt: any) => {
+    setEditingPartnerId(pt.id)
+    setPartnerForm({
+      partnerCode: pt.partnerCode ?? '',
+      name: pt.name ?? '',
+      shortName: pt.shortName ?? '',
+      category: pt.category ?? 'BEM Universitas',
+      badgeType: pt.badgeType ?? 'Mitra Kampus',
+      campusFullName: pt.campusFullName ?? '',
+      campusShortName: pt.campusShortName ?? '',
+      campusCity: pt.campusCity ?? '',
+      campusProvince: pt.campusProvince ?? 'DKI Jakarta',
+      presmaName: pt.presmaName ?? '',
+      cabinetName: pt.cabinetName ?? 'Kabinet Perjuangan',
+      logoUrl: pt.logoUrl ?? '',
+    })
+    setIsPartnerModalOpen(true)
+  }
+
+  // Handle Create / Update Partner
   const handleCreatePartner = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       const res = await fetch('/api/cms/partners', {
-        method: 'POST',
+        method: editingPartnerId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partnerForm),
+        body: JSON.stringify(editingPartnerId ? { ...partnerForm, id: editingPartnerId } : partnerForm),
       })
       const data = await res.json()
       if (data.success) {
-        showNotification('Mitra kampus baru berhasil didaftarkan!')
+        showNotification(editingPartnerId ? 'Profil mitra berhasil diperbarui!' : 'Mitra kampus baru berhasil didaftarkan!')
         setIsPartnerModalOpen(false)
+        setEditingPartnerId(null)
         fetchAllData()
       } else {
-        showNotification(data.error || 'Gagal mendaftarkan mitra', 'error')
+        showNotification(data.error || 'Gagal menyimpan mitra', 'error')
+      }
+    } catch {
+      showNotification('Terjadi kesalahan koneksi', 'error')
+    }
+  }
+
+  // Buka form video baru / ubah video yang sudah ada
+  const openCreateReel = () => {
+    setEditingReelId(null)
+    setReelForm(createEmptyReelForm())
+    setIsReelModalOpen(true)
+  }
+
+  const openEditReel = (reel: any) => {
+    setEditingReelId(reel.id)
+    setReelForm({
+      title: reel.title ?? '',
+      creator: reel.creator ?? 'Redaksi Suarantara',
+      views: reel.views ?? '',
+      duration: reel.duration ?? '',
+      category: reel.category ?? 'Liputan Langsung',
+      thumbnailUrl: reel.thumbnailUrl ?? '',
+      videoUrl: reel.videoUrl ?? '',
+      thumbnailGradient: reel.thumbnailGradient ?? 'from-navy-950 via-navy-900 to-stone-900',
+      sortOrder: Number(reel.sortOrder ?? 0),
+    })
+    setIsReelModalOpen(true)
+  }
+
+  // Handle Create / Update Video Reel
+  const handleSubmitReel = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const payload = {
+        title: reelForm.title.trim(),
+        creator: reelForm.creator.trim() || 'Redaksi Suarantara',
+        views: reelForm.views.trim() || '10K',
+        duration: reelForm.duration.trim() || '1:00',
+        category: reelForm.category,
+        thumbnailUrl: reelForm.thumbnailUrl.trim(),
+        videoUrl: reelForm.videoUrl.trim(),
+        thumbnailGradient: reelForm.thumbnailGradient,
+        sortOrder: Number(reelForm.sortOrder) || 0,
+      }
+      const res = await fetch('/api/cms/reels', {
+        method: editingReelId ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingReelId ? { ...payload, id: editingReelId } : payload),
+      })
+      const data = await res.json()
+      if (data.success) {
+        showNotification(editingReelId ? 'Video terbaru berhasil diperbarui!' : 'Video terbaru berhasil ditambahkan!')
+        setIsReelModalOpen(false)
+        setEditingReelId(null)
+        fetchAllData()
+      } else {
+        showNotification(data.error || 'Gagal menyimpan video', 'error')
       }
     } catch {
       showNotification('Terjadi kesalahan koneksi', 'error')
@@ -805,6 +1015,13 @@ export default function AdminDashboardPage() {
       pa.campusCity.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  const filteredReels = reels.filter(
+    (rl) =>
+      String(rl.title ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(rl.creator ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(rl.category ?? '').toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-stone-900 font-sans selection:bg-gold selection:text-navy">
       
@@ -984,6 +1201,7 @@ export default function AdminDashboardPage() {
               { key: 'program', label: 'Pilar Program', icon: Calendar },
               { key: 'partners', label: 'Pilar Partners', icon: Building2 },
               { key: 'aspirasi', label: 'Kotak Aspirasi', icon: MessageSquare },
+              { key: 'reels', label: 'Video Terbaru', icon: Video },
             ].map((tab) => {
               const Icon = tab.icon
               const isSelected = activeTab === tab.key
@@ -1031,24 +1249,47 @@ export default function AdminDashboardPage() {
 
             {/* Action Buttons Per Tab */}
             {activeTab === 'media' && (
-              <button
-                type="button"
-                onClick={openCreateArticle}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-serif font-bold text-white bg-navy hover:bg-navy-900 transition-colors shrink-0 shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5 text-gold" />
-                <span>Tulis Warta</span>
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSyncFromSanity}
+                  disabled={syncingSanity}
+                  title="Tarik seluruh naskah artikel terbaru dari Sanity Studio ke database CMS"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-serif font-bold text-navy bg-white border border-navy/30 hover:bg-navy/5 transition-colors shrink-0 shadow-xs disabled:opacity-60"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-gold ${syncingSanity ? 'animate-spin' : ''}`} />
+                  <span>{syncingSanity ? 'Menyinkronkan…' : 'Sinkron Sanity'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={openCreateArticle}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-serif font-bold text-white bg-navy hover:bg-navy-900 transition-colors shrink-0 shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5 text-gold" />
+                  <span>Tulis Warta</span>
+                </button>
+              </div>
             )}
 
             {activeTab === 'advokasi' && (
               <button
                 type="button"
-                onClick={() => setIsCaseModalOpen(true)}
+                onClick={openCreateCase}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-serif font-bold text-white bg-crimson hover:bg-crimson-800 transition-colors shrink-0 shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5 text-white" />
                 <span>Daftar Kasus</span>
+              </button>
+            )}
+
+            {activeTab === 'reels' && (
+              <button
+                type="button"
+                onClick={openCreateReel}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-serif font-bold text-white bg-navy hover:bg-navy-900 transition-colors shrink-0 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-gold" />
+                <span>Tambah Video</span>
               </button>
             )}
           </div>
@@ -1243,17 +1484,27 @@ export default function AdminDashboardPage() {
                         {cs.affectedCount}
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={async () => {
-                            if (!confirm('Hapus kasus ini?')) return
-                            await fetch(`/api/cms/advocacy?id=${cs.id}`, { method: 'DELETE' })
-                            showNotification('Kasus advokasi dihapus')
-                            fetchAllData()
-                          }}
-                          className="p-1 rounded text-stone-400 hover:text-crimson transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            onClick={() => openEditCase(cs)}
+                            title="Ubah kasus advokasi"
+                            className="p-1 rounded text-stone-400 hover:text-navy transition-colors"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Hapus kasus ini?')) return
+                              await fetch(`/api/cms/advocacy?id=${cs.id}`, { method: 'DELETE' })
+                              showNotification('Kasus advokasi dihapus')
+                              fetchAllData()
+                            }}
+                            title="Hapus kasus advokasi"
+                            className="p-1 rounded text-stone-400 hover:text-crimson transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1561,23 +1812,7 @@ export default function AdminDashboardPage() {
 
               <button
                 type="button"
-                onClick={() => {
-                  setPartnerForm({
-                    partnerCode: `PTR-${String(partners.length + 1).padStart(3, '0')}`,
-                    name: '',
-                    shortName: '',
-                    category: 'BEM Universitas',
-                    badgeType: 'Mitra Kampus',
-                    campusFullName: '',
-                    campusShortName: '',
-                    campusCity: '',
-                    campusProvince: 'DKI Jakarta',
-                    presmaName: '',
-                    cabinetName: 'Kabinet Perjuangan',
-                    logoUrl: '/partners/bem-stmik-jayakarta.svg',
-                  })
-                  setIsPartnerModalOpen(true)
-                }}
+                onClick={openCreatePartner}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-serif font-bold text-white bg-navy hover:bg-navy-800 transition-colors shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5 text-gold" />
@@ -1624,21 +1859,47 @@ export default function AdminDashboardPage() {
                         <p className="font-medium">{pt.presmaName}</p>
                         <p className="text-[10px] text-stone-400">{pt.cabinetName}</p>
                       </td>
-                      <td className="py-3 px-4 font-mono text-[10px] text-stone-500 whitespace-nowrap">
-                        {pt.logoUrl}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          {pt.logoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={pt.logoUrl}
+                              alt={`Logo ${pt.shortName || pt.name}`}
+                              className="w-8 h-8 rounded object-contain border border-stone-200 bg-white shrink-0"
+                            />
+                          ) : (
+                            <span className="w-8 h-8 rounded border border-dashed border-stone-300 flex items-center justify-center text-[9px] text-stone-400 shrink-0">
+                              N/A
+                            </span>
+                          )}
+                          <span className="font-mono text-[10px] text-stone-500 truncate max-w-[140px]">
+                            {pt.logoUrl}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <button
-                          onClick={async () => {
-                            if (!confirm('Hapus mitra ini?')) return
-                            await fetch(`/api/cms/partners?id=${pt.id}`, { method: 'DELETE' })
-                            showNotification('Profil mitra dihapus')
-                            fetchAllData()
-                          }}
-                          className="p-1 rounded text-stone-400 hover:text-crimson transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            onClick={() => openEditPartner(pt)}
+                            title="Ubah mitra"
+                            className="p-1 rounded text-stone-400 hover:text-navy transition-colors"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Hapus mitra ini?')) return
+                              await fetch(`/api/cms/partners?id=${pt.id}`, { method: 'DELETE' })
+                              showNotification('Profil mitra dihapus')
+                              fetchAllData()
+                            }}
+                            title="Hapus mitra"
+                            className="p-1 rounded text-stone-400 hover:text-crimson transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1718,6 +1979,122 @@ export default function AdminDashboardPage() {
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-stone-400 font-serif italic">
                         Belum ada aspirasi mahasiswa yang masuk ke sistem
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 7. REELS / VIDEO TERBARU TAB */}
+        {activeTab === 'reels' && (
+          <div className="bg-white rounded-xl border border-navy/15 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-stone-200 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-serif font-bold text-base text-navy">
+                  Kelola Video Terbaru (Reels)
+                </h3>
+                <p className="text-xs text-stone-500 font-sans">
+                  Total {filteredReels.length} video tayang di carousel &ldquo;Video Terbaru&rdquo; halaman utama
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={openCreateReel}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-serif font-bold text-white bg-navy hover:bg-navy-800 transition-colors shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-gold" />
+                <span>Tambah Video</span>
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-stone-50 text-stone-600 font-serif font-bold border-b border-stone-200 uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-4">Judul Video & Kategori</th>
+                    <th className="py-3 px-4">Kreator</th>
+                    <th className="py-3 px-4">Views</th>
+                    <th className="py-3 px-4">Durasi</th>
+                    <th className="py-3 px-4">Link Postingan</th>
+                    <th className="py-3 px-4">Urutan</th>
+                    <th className="py-3 px-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100 font-sans">
+                  {filteredReels.map((rl) => (
+                    <tr key={rl.id} className="hover:bg-stone-50/80 transition-colors group">
+                      <td className="py-3 px-4 max-w-sm">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-9 h-12 rounded overflow-hidden shrink-0 bg-gradient-to-b ${rl.thumbnailGradient} border border-stone-200 flex items-center justify-center`}>
+                            {rl.thumbnailUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={rl.thumbnailUrl} alt={rl.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <Video className="w-3.5 h-3.5 text-white/80" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-serif font-bold text-xs sm:text-[13px] text-stone-900 group-hover:text-navy line-clamp-2">
+                              {rl.title}
+                            </p>
+                            <span className="text-[9.5px] font-semibold text-gold-800 uppercase tracking-wider">
+                              {rl.category}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-stone-700 font-medium whitespace-nowrap">{rl.creator}</td>
+                      <td className="py-3 px-4 font-mono text-stone-700 whitespace-nowrap">{rl.views}</td>
+                      <td className="py-3 px-4 font-mono text-stone-700 whitespace-nowrap">{rl.duration}</td>
+                      <td className="py-3 px-4 max-w-[220px]">
+                        {rl.videoUrl ? (
+                          <a
+                            href={rl.videoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-navy font-semibold hover:text-crimson truncate"
+                          >
+                            <ArrowUpRight className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{rl.videoUrl}</span>
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-stone-400 italic">Belum ada link</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-stone-600 whitespace-nowrap">{rl.sortOrder}</td>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            onClick={() => openEditReel(rl)}
+                            title="Ubah video"
+                            className="p-1 rounded text-stone-400 hover:text-navy transition-colors"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Hapus video ini dari carousel?')) return
+                              await fetch(`/api/cms/reels?id=${rl.id}`, { method: 'DELETE' })
+                              showNotification('Video terbaru dihapus')
+                              fetchAllData()
+                            }}
+                            title="Hapus video"
+                            className="p-1 rounded text-stone-400 hover:text-crimson transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredReels.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-stone-400 font-serif italic">
+                        Belum ada video. Klik &ldquo;Tambah Video&rdquo; untuk menayangkan di halaman utama.
                       </td>
                     </tr>
                   )}
@@ -1989,13 +2366,16 @@ export default function AdminDashboardPage() {
                 <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
                   Naskah Berita Lengkap
                 </label>
-                <textarea
-                  rows={4}
-                  placeholder="Tuliskan naskah berita lengkap di sini..."
+                <RichTextEditor
                   value={articleForm.content}
-                  onChange={(e) => setArticleForm({ ...articleForm, content: e.target.value })}
-                  className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                  onChange={(content) => setArticleForm((prev) => ({ ...prev, content }))}
+                  placeholder="Tuliskan naskah berita lengkap di sini. Gunakan toolbar untuk subjudul, kutipan, daftar, dan tautan."
+                  rows={14}
+                  dropCapClassName="first-letter:font-serif first-letter:text-5xl first-letter:font-extrabold first-letter:text-navy first-letter:float-left first-letter:mr-2 first-letter:leading-none"
                 />
+                <p className="mt-1 text-[10px] text-stone-400 font-sans">
+                  Paragraf pertama otomatis tampil dengan huruf pertama besar (drop cap) seperti koran klasik.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2155,11 +2535,14 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
               <h3 className="font-serif font-bold text-lg text-crimson flex items-center gap-2">
                 <Scale className="w-5 h-5 text-crimson" />
-                <span>Daftarkan Kasus Advokasi Baru</span>
+                <span>{editingCaseId ? 'Edit Kasus Advokasi' : 'Daftarkan Kasus Advokasi Baru'}</span>
               </h3>
               <button
                 type="button"
-                onClick={() => setIsCaseModalOpen(false)}
+                onClick={() => {
+                  setIsCaseModalOpen(false)
+                  setEditingCaseId(null)
+                }}
                 className="p-1 rounded text-stone-400 hover:text-stone-700"
               >
                 <X className="w-5 h-5" />
@@ -2427,7 +2810,10 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200">
                 <button
                   type="button"
-                  onClick={() => setIsCaseModalOpen(false)}
+                  onClick={() => {
+                    setIsCaseModalOpen(false)
+                    setEditingCaseId(null)
+                  }}
                   className="px-4 py-2 rounded-md text-xs font-serif font-bold text-stone-600 hover:bg-stone-100"
                 >
                   Batal
@@ -2436,7 +2822,7 @@ export default function AdminDashboardPage() {
                   type="submit"
                   className="px-5 py-2 rounded-md text-xs font-serif font-bold text-white bg-crimson hover:bg-crimson-800 shadow-xs"
                 >
-                  Daftarkan Kasus
+                  {editingCaseId ? 'Simpan Perubahan' : 'Daftarkan Kasus'}
                 </button>
               </div>
             </form>
@@ -2451,11 +2837,14 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
               <h3 className="font-serif font-bold text-lg text-navy flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-gold" />
-                <span>Daftarkan Mitra Kampus Baru</span>
+                <span>{editingPartnerId ? 'Edit Profil Mitra Kampus' : 'Daftarkan Mitra Kampus Baru'}</span>
               </h3>
               <button
                 type="button"
-                onClick={() => setIsPartnerModalOpen(false)}
+                onClick={() => {
+                  setIsPartnerModalOpen(false)
+                  setEditingPartnerId(null)
+                }}
                 className="p-1 rounded text-stone-400 hover:text-stone-700"
               >
                 <X className="w-5 h-5" />
@@ -2594,24 +2983,69 @@ export default function AdminDashboardPage() {
 
               <div>
                 <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
-                  Logo URL / File Path
+                  Logo Mitra
                 </label>
-                <input
-                  type="text"
-                  placeholder="/partners/bem-nusantara.svg"
-                  value={partnerForm.logoUrl}
-                  onChange={(e) => setPartnerForm({ ...partnerForm, logoUrl: e.target.value })}
-                  className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
-                />
-                <p className="text-[10px] text-stone-400 mt-1 font-sans">
-                  Gunakan icon SVG dari folder public/partners atau URL gambar web langsung.
-                </p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[10px] font-sans font-semibold text-stone-500 mb-1">
+                      Opsi 1 — Unggah dari Perangkat (ke Supabase Storage)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml"
+                        disabled={uploadingPartnerLogo}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          setUploadingPartnerLogo(true)
+                          const url = await uploadImage(file, 'partners')
+                          if (url) setPartnerForm((prev) => ({ ...prev, logoUrl: url }))
+                          setUploadingPartnerLogo(false)
+                          e.target.value = ''
+                        }}
+                        className="flex-1 text-[11px] font-sans file:mr-2 file:px-3 file:py-1.5 file:rounded-md file:border-0 file:bg-navy file:text-white file:text-[11px] file:cursor-pointer text-stone-500"
+                      />
+                      {uploadingPartnerLogo && (
+                        <RefreshCw className="w-4 h-4 text-gold animate-spin shrink-0" />
+                      )}
+                    </div>
+                    <p className="mt-1 text-[10px] text-stone-400 font-sans">
+                      JPG/PNG/WEBP/GIF/AVIF/SVG · maks 5 MB. URL hasil unggah otomatis terisi di bawah.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-sans font-semibold text-stone-500 mb-1">
+                      Opsi 2 — URL / Path Manual
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="/partners/bem-nusantara.svg atau https://..."
+                      value={partnerForm.logoUrl}
+                      onChange={(e) => setPartnerForm({ ...partnerForm, logoUrl: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                    />
+                  </div>
+                </div>
+                {partnerForm.logoUrl && (
+                  <div className="mt-2 relative w-24 h-24 rounded-md overflow-hidden border border-stone-200 bg-stone-50 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={partnerForm.logoUrl}
+                      alt="Pratinjau logo mitra"
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200">
                 <button
                   type="button"
-                  onClick={() => setIsPartnerModalOpen(false)}
+                  onClick={() => {
+                    setIsPartnerModalOpen(false)
+                    setEditingPartnerId(null)
+                  }}
                   className="px-4 py-2 rounded-md text-xs font-serif font-bold text-stone-600 hover:bg-stone-100"
                 >
                   Batal
@@ -2620,7 +3054,226 @@ export default function AdminDashboardPage() {
                   type="submit"
                   className="px-5 py-2 rounded-md text-xs font-serif font-bold text-white bg-navy hover:bg-navy-800 shadow-xs"
                 >
-                  Daftarkan Mitra
+                  {editingPartnerId ? 'Simpan Perubahan' : 'Daftarkan Mitra'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL CREATE / EDIT VIDEO TERBARU (REELS) ─── */}
+      {isReelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-navy/20 relative my-4 sm:my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-200 mb-4">
+              <h3 className="font-serif font-bold text-lg text-navy flex items-center gap-2">
+                <Video className="w-5 h-5 text-gold" />
+                <span>{editingReelId ? 'Edit Video Terbaru' : 'Tambah Video Terbaru'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsReelModalOpen(false)
+                  setEditingReelId(null)
+                }}
+                className="p-1 rounded text-stone-400 hover:text-stone-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReel} className="space-y-4">
+              <div>
+                <label className="block text-xs font-serif font-bold text-stone-700 mb-1">
+                  Judul Video *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Misal: Aksi Mahasiswa Menuntut Transparansi UKT"
+                  value={reelForm.title}
+                  onChange={(e) => setReelForm({ ...reelForm, title: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md text-xs font-serif font-bold focus:outline-none focus:border-navy"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                    Kreator / Akun
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Redaksi Suarantara"
+                    value={reelForm.creator}
+                    onChange={(e) => setReelForm({ ...reelForm, creator: e.target.value })}
+                    className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                    Kategori
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Liputan Langsung"
+                    value={reelForm.category}
+                    onChange={(e) => setReelForm({ ...reelForm, category: e.target.value })}
+                    className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                    Views
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="10.5K"
+                    value={reelForm.views}
+                    onChange={(e) => setReelForm({ ...reelForm, views: e.target.value })}
+                    className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                    Durasi
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="0:58"
+                    value={reelForm.duration}
+                    onChange={(e) => setReelForm({ ...reelForm, duration: e.target.value })}
+                    className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                    Urutan Tampil
+                  </label>
+                  <input
+                    type="number"
+                    value={reelForm.sortOrder}
+                    onChange={(e) => setReelForm({ ...reelForm, sortOrder: Number(e.target.value) })}
+                    className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-serif font-bold text-stone-700 mb-1">
+                  Link Postingan Video (Instagram / TikTok / YouTube / dll)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://www.instagram.com/reel/..."
+                  value={reelForm.videoUrl}
+                  onChange={(e) => setReelForm({ ...reelForm, videoUrl: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md text-xs font-mono focus:outline-none focus:border-navy"
+                />
+                <p className="mt-1 text-[10px] text-stone-400 font-sans">
+                  Saat pengunjung mengklik kartu video di halaman utama, tautan ini akan dibuka.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                  Thumbnail / Cover Video
+                </label>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[10px] font-sans font-semibold text-stone-500 mb-1">
+                      Opsi 1 — Unggah dari Perangkat (ke Supabase Storage)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml"
+                        disabled={uploadingReelThumb}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          setUploadingReelThumb(true)
+                          const url = await uploadImage(file, 'reels')
+                          if (url) setReelForm((prev) => ({ ...prev, thumbnailUrl: url }))
+                          setUploadingReelThumb(false)
+                          e.target.value = ''
+                        }}
+                        className="flex-1 text-[11px] font-sans file:mr-2 file:px-3 file:py-1.5 file:rounded-md file:border-0 file:bg-navy file:text-white file:text-[11px] file:cursor-pointer text-stone-500"
+                      />
+                      {uploadingReelThumb && (
+                        <RefreshCw className="w-4 h-4 text-gold animate-spin shrink-0" />
+                      )}
+                    </div>
+                    <p className="mt-1 text-[10px] text-stone-400 font-sans">
+                      Rasio potret 9:16 disarankan · maks 5 MB.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-sans font-semibold text-stone-500 mb-1">
+                      Opsi 2 — URL Gambar Manual
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://... (kosongkan bila pakai warna gradasi)"
+                      value={reelForm.thumbnailUrl}
+                      onChange={(e) => setReelForm({ ...reelForm, thumbnailUrl: e.target.value })}
+                      className="w-full px-3 py-1.5 border rounded-md text-xs font-mono"
+                    />
+                  </div>
+                </div>
+                {reelForm.thumbnailUrl ? (
+                  <div className="mt-2 relative w-24 h-40 rounded-md overflow-hidden border border-stone-200 bg-stone-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={reelForm.thumbnailUrl}
+                      alt="Pratinjau thumbnail video"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[10px] text-stone-400 font-sans italic">
+                    Tanpa thumbnail, kartu akan memakai warna gradasi di bawah.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-sans font-semibold text-stone-600 mb-1">
+                  Warna Gradasi Kartu (jika tanpa thumbnail)
+                </label>
+                <select
+                  value={reelForm.thumbnailGradient}
+                  onChange={(e) => setReelForm({ ...reelForm, thumbnailGradient: e.target.value })}
+                  className="w-full px-3 py-1.5 border rounded-md text-xs font-sans"
+                >
+                  <option value="from-navy-950 via-navy-900 to-stone-900">Navy Gelap</option>
+                  <option value="from-crimson-900 via-crimson-800 to-stone-900">Krimson Merah</option>
+                  <option value="from-emerald-900 via-emerald-800 to-stone-900">Hijau Zamrud</option>
+                  <option value="from-amber-700 via-amber-600 to-stone-800">Emas Tua</option>
+                  <option value="from-stone-800 via-stone-700 to-stone-900">Batu Abu</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsReelModalOpen(false)
+                    setEditingReelId(null)
+                  }}
+                  className="px-4 py-2 rounded-md text-xs font-serif font-bold text-stone-600 hover:bg-stone-100"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-md text-xs font-serif font-bold text-white bg-navy hover:bg-navy-800 shadow-xs"
+                >
+                  {editingReelId ? 'Simpan Perubahan' : 'Tambah Video'}
                 </button>
               </div>
             </form>

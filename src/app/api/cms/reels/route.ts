@@ -74,6 +74,30 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  const staff = await requireStaff()
+  if (!staff) return unauthorized('Hanya staf redaksi yang dapat mengubah video reel.')
+
+  try {
+    const ip = getClientIp(req)
+    const rl = rateLimit(`cms:reels:write:${ip}`, 60, 60 * 1000)
+    if (!rl.ok) return tooManyRequests(rl.retryAfter)
+
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
+    const id = typeof body.id === 'string' ? body.id : ''
+    if (!id) return badRequest('ID reel diperlukan')
+
+    const fields = sanitizeFields(body, REEL_FIELDS)
+    if (Object.keys(fields).length === 0) return badRequest('Tidak ada field valid untuk diperbarui')
+
+    const reel = await db.videoReel.update({ where: { id }, data: fields })
+    return NextResponse.json({ success: true, reel })
+  } catch (error) {
+    console.error('Failed to update reel:', error)
+    return serverError('Gagal memperbarui video reel')
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   const staff = await requireStaff()
   if (!staff) return unauthorized('Hanya staf redaksi yang dapat menghapus video reel.')

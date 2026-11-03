@@ -12,6 +12,8 @@ interface VideoReel {
   duration: string
   category: string
   thumbnailGradient: string
+  thumbnailUrl?: string | null
+  videoUrl?: string | null
 }
 
 export function VideoReelsCarousel() {
@@ -79,11 +81,22 @@ export function VideoReelsCarousel() {
           }}
         >
           {/* Loop ganda untuk kontinuitas slider */}
-          {[...reels, ...reels, ...reels].map((reel, idx) => (
-            <div
-              key={`${reel.id}-${idx}`}
-              className={`relative shrink-0 w-36 sm:w-44 md:w-48 h-60 sm:h-72 md:h-80 rounded-xl overflow-hidden bg-gradient-to-b ${reel.thumbnailGradient} border border-navy/15 hover:border-gold transition-all duration-300 group cursor-pointer shadow-md hover:-translate-y-1`}
-            >
+          {[...reels, ...reels, ...reels].map((reel, idx) => {
+            const cardClass = `relative shrink-0 block w-36 sm:w-44 md:w-48 h-60 sm:h-72 md:h-80 rounded-xl overflow-hidden bg-gradient-to-b ${reel.thumbnailGradient} border border-navy/15 hover:border-gold transition-all duration-300 group cursor-pointer shadow-md hover:-translate-y-1`
+            const inner = (
+              <>
+                {reel.thumbnailUrl && (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={reel.thumbnailUrl}
+                      alt={reel.title}
+                      loading="lazy"
+                      className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/10 to-black/70" />
+                  </>
+                )}
               {/* Top Meta: Kategori & Durasi */}
               <div className="absolute top-2.5 inset-x-2.5 flex items-center justify-between z-10">
                 <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[9px] font-sans font-semibold text-gold tracking-wider uppercase border border-gold/30">
@@ -122,8 +135,25 @@ export function VideoReelsCarousel() {
               <div className="absolute bottom-2.5 right-2.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Volume2 className="w-3.5 h-3.5 text-stone-300" />
               </div>
-            </div>
-          ))}
+              </>
+            )
+            return reel.videoUrl ? (
+              <a
+                key={`${reel.id}-${idx}`}
+                href={reel.videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={reel.title}
+                className={cardClass}
+              >
+                {inner}
+              </a>
+            ) : (
+              <div key={`${reel.id}-${idx}`} className={cardClass}>
+                {inner}
+              </div>
+            )
+          })}
         </div>
       </div>
       )}

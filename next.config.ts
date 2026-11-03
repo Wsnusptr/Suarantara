@@ -21,8 +21,9 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com",
-      "style-src 'self' 'unsafe-inline'",
+      // CDN diizinkan khusus untuk library animasi latar (p5.js + Vanta.js).
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https:",
       "connect-src 'self' https:",

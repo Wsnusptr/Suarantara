@@ -28,6 +28,7 @@ import { Footer } from '@/components/layout/Footer'
 import { ContactDrawerRight } from '@/components/layout/ContactDrawerRight'
 import { useContactModal } from '@/hooks/useContactModal'
 import { EmptyState } from '@/components/common/EmptyState'
+import { RichText } from '@/components/common/RichText'
 
 // SVG Icons for clean social shares
 function WhatsAppIcon({ className = 'w-4 h-4' }: { className?: string }) {
@@ -440,18 +441,11 @@ export default function DetailBeritaClient({ initialArticle = null }: { initialA
               }`}
             >
               {cmsParagraphs ? (
-                cmsParagraphs.map((para, i) => (
-                  <p
-                    key={i}
-                    className={`text-justify whitespace-pre-line ${
-                      i === 0
-                        ? 'first-letter:font-serif first-letter:text-5xl sm:first-letter:text-6xl first-letter:font-extrabold first-letter:text-navy first-letter:float-left first-letter:mr-3 first-letter:leading-none first-letter:pt-1'
-                        : ''
-                    }`}
-                  >
-                    {para}
-                  </p>
-                ))
+                <RichText
+                  content={String(dbArticle?.content || '')}
+                  className="space-y-5"
+                  dropCapClassName="first-letter:font-serif first-letter:text-5xl sm:first-letter:text-6xl first-letter:font-extrabold first-letter:text-navy first-letter:float-left first-letter:mr-3 first-letter:leading-none first-letter:pt-1"
+                />
               ) : (
                 <EmptyState
                   icon={Newspaper}
